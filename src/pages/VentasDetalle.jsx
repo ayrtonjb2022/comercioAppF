@@ -14,7 +14,7 @@ export default function VentasDetalle() {
     const fetchVentas = async () => {
       try {
         const res = await getDetalleVentas();
-
+        
         if (!res || !res.ventas) {
           console.warn("No se encontraron ventas");
           return;

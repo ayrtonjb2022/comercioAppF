@@ -59,29 +59,35 @@ export default function CajaView({id}) {
     }
   };
 
-  useEffect(() => {
-    const getProductosUs = async () => {
-      try {
-        const response = await getProductosall();
-        const productos = response?.data?.productos || [];
-        const productosFiltrados = productos.filter(
-          (p) => p?.id && p?.nombre && p?.categoria
-        );
-        setProductosG(productosFiltrados);
-      } catch (error) {
-        console.error("Error al obtener productos:", error);
-        setProductosG([]);
-      }
-    };
+useEffect(() => {
+  const getProductosUs = async () => {
+    try {
+      const response = await getProductosall();
+      const productos = response?.data?.productos || [];
 
-    getProductosUs();
-  }, []);
+      // Normalización de productos
+      const productosFormateados = productos.map((p) => ({
+        ...p,
+        descripcion: p.descripcion ?? "",
+        categoria: p.categoria ?? "",
+        activo: p.activo !== null ? Boolean(p.activo) : true,
+      }));
 
-  const productosFiltrados = productosG.filter(
-    (p) =>
-      p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-      p.categoria.toLowerCase().includes(filtro.toLowerCase())
-  );
+      const productosValidos = productosFormateados.filter((p) => p?.id && p?.nombre);
+      setProductosG(productosValidos);
+    } catch (error) {
+      console.error("Error al obtener productos:", error);
+      setProductosG([]);
+    }
+  };
+
+  getProductosUs();
+}, []);
+
+const productosFiltrados = productosG.filter((p) =>
+  `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
+);
+
 
   const agregarProducto = (producto) => {
     const precio = parseFloat(producto.precioVenta) || 0;

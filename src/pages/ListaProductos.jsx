@@ -1,37 +1,41 @@
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { FaEdit, FaTrash, FaPlus } from "react-icons/fa";
-import {getProductosall,postProductos,putProductos,deleteProductos} from '../api/webApi'
+import {
+  getProductosall,
+  postProductos,
+  putProductos,
+  deleteProductos,
+} from "../api/webApi";
+
 export default function VistaProductos() {
   const [filtro, setFiltro] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
- const [productos, setProductos] = useState([
-    {
-      id: 1,
-      nombre: "Monitor 24''",
-      cantidad: 8,
-      precioCompra: 15000,
-      precioVenta: 22000,
-      porcentajeGanancia: 46.7,
-      descripcion: "Monitor Full HD 1080p con entrada HDMI.",
-      categoria: "Pantallas",
-      activo: true,
-    },
-  ]);
-  useEffect(()=>{
-    const getProductos = async()=>{
+  const [productos, setProductos] = useState([]);
+
+  useEffect(() => {
+    const getProductos = async () => {
       const response = await getProductosall();
-        const productos = response?.data?.productos || [];
-        const productosFiltrados = productos.filter(
-          (p) => p?.id && p?.nombre && p?.categoria
-        );
-        setProductos(productosFiltrados);
-    }
+      const productosRaw = response?.data?.productos || [];
 
-    getProductos()
-  },[])
+      // Normalizar datos recibidos
+      const productosFormateados = productosRaw.map((p) => ({
+        ...p,
+        descripcion: p.descripcion ?? "",
+        categoria: p.categoria ?? "",
+        activo: p.activo !== null ? Boolean(p.activo) : true,
+      }));
 
- 
+      // Filtro solo por existencia de id y nombre
+      const productosValidos = productosFormateados.filter(
+        (p) => p?.id && p?.nombre
+      );
+
+      setProductos(productosValidos);
+    };
+
+    getProductos();
+  }, []);
 
   const productosFiltrados = productos.filter((p) =>
     `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
@@ -63,16 +67,16 @@ export default function VistaProductos() {
     setMostrarModal(true);
   };
 
-  const abrirEditar = (producto) => {    
+  const abrirEditar = (producto) => {
     setForm(producto);
     setProductoEditar(producto);
     setMostrarModal(true);
   };
 
-  const handleEliminar = async(id) => {
+  const handleEliminar = async (id) => {
     if (confirm("¿Eliminar producto?")) {
       setProductos((prev) => prev.filter((p) => p.id !== id));
-      await deleteProductos(id)
+      await deleteProductos(id);
     }
   };
 
@@ -82,15 +86,13 @@ export default function VistaProductos() {
       setProductos((prev) =>
         prev.map((p) => (p.id === productoEditar.id ? form : p))
       );
-      await putProductos(form)
+      await putProductos(form);
     } else {
       setProductos((prev) => [
         ...prev,
         { ...form, id: prev.length ? prev[prev.length - 1].id + 1 : 1 },
       ]);
-      console.log(form);
       await postProductos(form);
-      
     }
     setMostrarModal(false);
   };

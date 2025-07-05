@@ -21,7 +21,7 @@ api.interceptors.response.use(
     response => response,
     error => {
         if (error.response?.status === 401) {
-            window.location.href = '/login';
+            window.location.href = '/';
         }
         return Promise.reject(error);
     }
@@ -40,7 +40,7 @@ const manejoErrores = (error) => {
 
 export const postRegister = async (data) => {
     try {
-        const response = await api.post('/register', data, {
+        const response = await api.post('/auth/register', data, {
             headers: { "Content-Type": "application/json" },
         });
         return response;
@@ -51,7 +51,7 @@ export const postRegister = async (data) => {
 
 export const postLogin = async (data) => {
     try {
-        const response = await api.post('/login', data, {
+        const response = await api.post('/auth/login', data, {
             headers: { "Content-Type": "application/json" },
         });
         sessionStorage.setItem("token", response.data.token);

@@ -1,9 +1,9 @@
-import { Navigate, Outlet } from "react-router-dom";
+// components/PrivateRouter.jsx
+import { Navigate } from "react-router-dom";
 
-const PrivateRoute = () => {
-  const isAuthenticated = sessionStorage.getItem("token"); // o usa un contexto
-
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+const PrivateRoute = ({ children }) => {
+  const isAuthenticated = sessionStorage.getItem("token");
+  return isAuthenticated ? children : <Navigate to="/" />;
 };
 
 export default PrivateRoute;
