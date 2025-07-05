@@ -7,11 +7,11 @@ import Dashboard from "../pages/Dashboard";
 // import Footer from '../components/Footer'; // Lo tienes importado pero no se usa
 
 const RouterAP = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+    const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem("token"));
 
     useEffect(() => {
         const checkAuth = () => {
-            setIsAuthenticated(!!localStorage.getItem("token"));
+            setIsAuthenticated(!!sessionStorage.getItem("token"));
         };
 
         // Escucha cambios en otras pestañas (como cerrar sesión)

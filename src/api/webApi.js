@@ -8,7 +8,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -44,7 +44,7 @@ export const getProductosall = async () => {
         const response = await api.get(`/productos`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -59,7 +59,7 @@ export const getCajas = async () => {
         const response = await api.get(`/cajas`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -75,7 +75,7 @@ export const getDataUs = async () => {
         const response = await api.get(`/user`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -90,7 +90,7 @@ export const getMovimiento = async () => {
         const response = await api.get(`/movimientoall`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -105,7 +105,7 @@ export const getDetalleVentas = async () => {
         const response = await api.get(`/ventasAll`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -120,7 +120,7 @@ export const postProductos = async (data) => {
         const response = await api.post(`/productos`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -135,7 +135,7 @@ export const postCaja = async (data) => {
         const response = await api.post(`/cajas`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -150,7 +150,7 @@ export const postVendas = async (data) => {
         const response = await api.post(`/ventas`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -165,7 +165,7 @@ export const postMovimiento = async (data) => {
         const response = await api.post(`/movimiento`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -180,7 +180,7 @@ export const putProductos = async (data) => {
         const response = await api.put(`/productos/${data.id}`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -195,7 +195,7 @@ export const putCajas = async (data) => {
         const response = await api.put(`/cajas/${data.id}`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -210,7 +210,7 @@ export const putUserData = async (data) => {
         const response = await api.put(`/user`,data,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );
@@ -225,7 +225,7 @@ export const deleteProductos = async (id) => {
         const response = await api.delete(`/productos/${id}`,
             {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`, 
+                  Authorization: `Bearer ${sessionStorage.getItem("token")}`, 
                 },
               }
         );

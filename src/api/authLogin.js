@@ -8,7 +8,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -54,7 +54,7 @@ export const postLogin = async (data) => {
         const response = await api.post('/login', data, {
             headers: { "Content-Type": "application/json" },
         });
-        localStorage.setItem("token", response.data.token);
+        sessionStorage.setItem("token", response.data.token);
         return response;
     } catch (error) {
         return manejoErrores(error);
