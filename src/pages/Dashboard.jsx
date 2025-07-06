@@ -116,8 +116,8 @@ window.location.reload();
     <main className="flex-1 overflow-y-auto p-4">
       {pagina === "cajaventa" && <CajaView id={cajaId} />}
       {pagina === "productos" && <ListaProductos />}
-      {pagina === "analisis" && <VistaIngresosGastos />}
-      {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
+      {pagina === "analisis" && <VistaIngresosGastos id={cajaId}/>}
+      {pagina === "cajasdiarias" && <VistaCajas data={cajaData}  />}
       {pagina === "configuracion" && <ConfiguracionCuenta />}
       {pagina === "VentasDetalle" && <VentasDetalle />}
     </main>

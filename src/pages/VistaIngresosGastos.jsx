@@ -1,23 +1,43 @@
 import { useState, useMemo, useEffect } from "react";
 import { FaPlus, FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { getMovimiento,postMovimiento } from "../api/webApi";
+import { format } from "@formkit/tempo"
 
-export default function VistaIngresosGastos() {
+export default function VistaIngresosGastos({id}) {
   const [movimientos, setMovimientos] = useState([]);
   const [mostrarModal, setMostrarModal] = useState(false);
+  function getFechaHoraLocalISO() {
+  const fecha = new Date();
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  const hora = String(fecha.getHours()).padStart(2, "0");
+  const minutos = String(fecha.getMinutes()).padStart(2, "0");
+  const segundos = String(fecha.getSeconds()).padStart(2, "0");
+  return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
+}
+
+console.log(getFechaHoraLocalISO());
+
+
+
   const [nuevoMovimiento, setNuevoMovimiento] = useState({
     tipo: "ingreso",
     descripcion: "",
     monto: "",
     producto: "",
-    fecha: new Date().toISOString().slice(0, 10), // formato YYYY-MM-DD
-    cajaId: 1
+    fecha: getFechaHoraLocalISO(), // formato YYYY-MM-DD
+    cajaId: id
   });
+
+
 
   useEffect(() => {
     const getAllMovimientos = async () => {
       try {
         const response = await getMovimiento();
+        console.log(response.data);
+        
         setMovimientos(response.data.movimientos || []);
       } catch (error) {
         console.error("Error al obtener movimientos:", error);
@@ -66,8 +86,8 @@ export default function VistaIngresosGastos() {
       descripcion: "",
       monto: "",
       producto: "",
-      fecha: new Date().toISOString().slice(0, 10),
-      cajaId: 1
+      fecha: getFechaHoraLocalISO(),
+      cajaId: id
     });
     setMostrarModal(false);
   };
@@ -117,7 +137,6 @@ export default function VistaIngresosGastos() {
                   <th className="p-3 text-gray-600">Fecha</th>
                   <th className="p-3 text-gray-600">Tipo</th>
                   <th className="p-3 text-gray-600">Descripción</th>
-                  <th className="p-3 text-gray-600">Producto</th>
                   <th className="p-3 text-gray-600 text-right">Monto</th>
                 </tr>
               </thead>
@@ -129,12 +148,11 @@ export default function VistaIngresosGastos() {
                       mov.tipo === "ingreso" ? "bg-green-50" : "bg-red-50"
                     }`}
                   >
-                    <td className="p-3">{mov.fecha || "-"}</td>
+                    <td className="p-3">{format(mov.fecha,{date: "medium", time:"short"})|| "-"}</td>
                     <td className={`p-3 font-semibold ${mov.tipo === "ingreso" ? "text-green-700" : "text-red-700"}`}>
                       {mov.tipo.charAt(0).toUpperCase() + mov.tipo.slice(1)}
                     </td>
                     <td className="p-3">{mov.descripcion}</td>
-                    <td className="p-3">{mov.producto || "-"}</td>
                     <td className="p-3 text-right font-semibold">
                       ${Number(mov.monto).toLocaleString()}
                     </td>

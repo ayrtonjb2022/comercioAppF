@@ -14,7 +14,7 @@ export default function VentasDetalle() {
     const fetchVentas = async () => {
       try {
         const res = await getDetalleVentas();
-        
+        console.log(res);
         if (!res || !res.ventas) {
           console.warn("No se encontraron ventas");
           return;
@@ -65,7 +65,10 @@ export default function VentasDetalle() {
   };
 
   const calcularTotalVendido = (data) => {
-    const total = data.reduce((acc, item) => acc + item.total, 0);
+    const total = data.reduce((acc, item) => {
+      const totalConDescuento = (parseFloat(item.precio_unitario) * item.cantidad) - (item.descuento || 0);
+      return acc + totalConDescuento;
+    }, 0);
     setTotalVendido(total);
   };
 
@@ -74,7 +77,9 @@ export default function VentasDetalle() {
       const precioCompra = parseFloat(item.productos.precioCompra);
       const precioVenta = parseFloat(item.precio_unitario);
       const cantidad = item.cantidad;
-      const ganancia = (precioVenta - precioCompra) * cantidad;
+      const descuento = item.descuento || 0;
+
+      const ganancia = (precioVenta * cantidad - descuento) - (precioCompra * cantidad);
       return acc + ganancia;
     }, 0);
     setTotalGanancia(total);
@@ -120,7 +125,6 @@ export default function VentasDetalle() {
         </div>
       )}
 
-      {/* Totales arriba */}
       <div className="mb-4 flex gap-6">
         <div className="flex-1 p-4 bg-green-100 text-green-900 font-semibold rounded shadow">
           Total vendido: {formatearMoneda(totalVendido)}
@@ -134,12 +138,7 @@ export default function VentasDetalle() {
         <table className="min-w-full bg-white">
           <thead className="bg-gray-100 sticky top-0">
             <tr>
-              <th className="text-left p-2 border">Producto</th>
-              <th className="text-left p-2 border">Precio Compra</th>
-              <th className="text-left p-2 border">Precio Venta</th>
-              <th className="text-left p-2 border">Cantidad</th>
-              <th className="text-left p-2 border">Total Vendido</th>
-              <th className="text-left p-2 border">Ganancia</th>
+              <th className="text-left p-2 border">Producto</th><th className="text-left p-2 border">Precio Compra</th><th className="text-left p-2 border">Precio Venta</th><th className="text-left p-2 border">Cantidad</th><th className="text-left p-2 border">Descuento</th><th className="text-left p-2 border">Total Vendido</th><th className="text-left p-2 border">Ganancia</th>
             </tr>
           </thead>
           <tbody>
@@ -147,17 +146,14 @@ export default function VentasDetalle() {
               const precioCompra = parseFloat(item.productos.precioCompra);
               const precioVenta = parseFloat(item.precio_unitario);
               const cantidad = item.cantidad;
-              const totalVenta = precioVenta * cantidad;
-              const ganancia = (precioVenta - precioCompra) * cantidad;
+              const descuento = item.descuento || 0;
+
+              const totalVenta = precioVenta * cantidad - descuento;
+              const ganancia = totalVenta - (precioCompra * cantidad);
 
               return (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="p-2 border">{item.productos.nombre}</td>
-                  <td className="p-2 border">{formatearMoneda(precioCompra)}</td>
-                  <td className="p-2 border">{formatearMoneda(precioVenta)}</td>
-                  <td className="p-2 border">{cantidad}</td>
-                  <td className="p-2 border">{formatearMoneda(totalVenta)}</td>
-                  <td className="p-2 border text-green-700">{formatearMoneda(ganancia)}</td>
+                  <td className="p-2 border">{item.productos.nombre}</td><td className="p-2 border">{formatearMoneda(precioCompra)}</td><td className="p-2 border">{formatearMoneda(precioVenta)}</td><td className="p-2 border">{cantidad}</td><td className="p-2 border text-red-600 font-semibold">{formatearMoneda(descuento)}</td><td className="p-2 border">{formatearMoneda(totalVenta)}</td><td className="p-2 border text-green-700">{formatearMoneda(ganancia)}</td>
                 </tr>
               );
             })}

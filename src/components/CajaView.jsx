@@ -1,13 +1,27 @@
 import { useState, useEffect } from "react";
-import { getProductosall, postVendas, postMovimiento} from "../api/webApi";
+import { getProductosall, postVendas, postMovimiento } from "../api/webApi";
 import VentaModal from './VentaModal';
 
-export default function CajaView({id}) {
+export default function CajaView({ id }) {
   const [filtro, setFiltro] = useState("");
   const [ticket, setTicket] = useState([]);
   const [productosG, setProductosG] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [totalVenta, setTotalVenta] = useState(0);
+
+  function getFechaHoraLocalISO() {
+  const fecha = new Date();
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  const hora = String(fecha.getHours()).padStart(2, "0");
+  const minutos = String(fecha.getMinutes()).padStart(2, "0");
+  const segundos = String(fecha.getSeconds()).padStart(2, "0");
+  return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
+}
+
+console.log(getFechaHoraLocalISO());
+
 
   const totalBruto = ticket.reduce(
     (acc, item) => acc + item.precio * item.cantidad,
@@ -28,27 +42,30 @@ export default function CajaView({id}) {
       producto_id: item.id,
       cantidad: item.cantidad,
       precio_unitario: item.precio,
-      total: parseFloat((item.precio * item.cantidad * (1 - item.descuento / 100)).toFixed(2))
+      total: parseFloat((item.precio * item.cantidad * (1 - item.descuento / 100)).toFixed(2)),
+      descuento: parseFloat(((item.precio * item.cantidad * item.descuento) / 100).toFixed(2))
     }));
 
+
     const ventaCompleta = {
-      fecha: new Date().toISOString(),
+      fecha: getFechaHoraLocalISO(),
       total: parseFloat(totalNeto.toFixed(2)),
       cajaId: id, // Cambia este valor si usás caja dinámica
       medio_pago: venta.medio_pago,
       detalles
     };
     console.log("medio");
-    
+
 
     try {
       const response = await postVendas(ventaCompleta);
       const dataMovimiento = {
-        tipo:"ingreso", 
-        monto: totalNeto, 
-        descripcion:"Venta",
-        fecha:new Date().toISOString(),
-        cajaId: id}
+        tipo: "ingreso",
+        monto: totalNeto,
+        descripcion: "Venta",
+        fecha: getFechaHoraLocalISO(),
+        cajaId: id
+      }
       const resMovimiento = await postMovimiento(dataMovimiento);
       console.log("Venta registrada:", response.data);
       setTicket([]);
@@ -59,34 +76,34 @@ export default function CajaView({id}) {
     }
   };
 
-useEffect(() => {
-  const getProductosUs = async () => {
-    try {
-      const response = await getProductosall();
-      const productos = response?.data?.productos || [];
+  useEffect(() => {
+    const getProductosUs = async () => {
+      try {
+        const response = await getProductosall();
+        const productos = response?.data?.productos || [];
 
-      // Normalización de productos
-      const productosFormateados = productos.map((p) => ({
-        ...p,
-        descripcion: p.descripcion ?? "",
-        categoria: p.categoria ?? "",
-        activo: p.activo !== null ? Boolean(p.activo) : true,
-      }));
+        // Normalización de productos
+        const productosFormateados = productos.map((p) => ({
+          ...p,
+          descripcion: p.descripcion ?? "",
+          categoria: p.categoria ?? "",
+          activo: p.activo !== null ? Boolean(p.activo) : true,
+        }));
 
-      const productosValidos = productosFormateados.filter((p) => p?.id && p?.nombre);
-      setProductosG(productosValidos);
-    } catch (error) {
-      console.error("Error al obtener productos:", error);
-      setProductosG([]);
-    }
-  };
+        const productosValidos = productosFormateados.filter((p) => p?.id && p?.nombre);
+        setProductosG(productosValidos);
+      } catch (error) {
+        console.error("Error al obtener productos:", error);
+        setProductosG([]);
+      }
+    };
 
-  getProductosUs();
-}, []);
+    getProductosUs();
+  }, []);
 
-const productosFiltrados = productosG.filter((p) =>
-  `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
-);
+  const productosFiltrados = productosG.filter((p) =>
+    `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
+  );
 
 
   const agregarProducto = (producto) => {
@@ -121,10 +138,10 @@ const productosFiltrados = productosG.filter((p) =>
       prev.map((item) =>
         item.id === id
           ? {
-              ...item,
-              cantidad: cantidad !== null ? cantidad : item.cantidad,
-              descuento: descuento !== null ? descuento : item.descuento,
-            }
+            ...item,
+            cantidad: cantidad !== null ? cantidad : item.cantidad,
+            descuento: descuento !== null ? descuento : item.descuento,
+          }
           : item
       )
     );
@@ -133,13 +150,13 @@ const productosFiltrados = productosG.filter((p) =>
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900">
       {/* Panel Ticket */}
-        
+
       <VentaModal
-          isOpen={modalAbierto}
-          onClose={() => setModalAbierto(false)}
-          total={totalVenta}
-          onConfirm={manejarConfirmacion}
-        />
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+        total={totalVenta}
+        onConfirm={manejarConfirmacion}
+      />
 
       {/* Panel Ticket Detalle */}
       <section className="md:w-1/4 border-b md:border-b-0 md:border-r border-gray-300 p-4 flex flex-col max-h-60 md:max-h-full overflow-y-auto">
