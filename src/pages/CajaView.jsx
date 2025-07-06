@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getProductosall, postVendas, postMovimiento } from "../api/webApi";
-import VentaModal from './VentaModal';
+import VentaModal from '../components/VentaModal';
 
 export default function CajaView({ id }) {
   const [filtro, setFiltro] = useState("");

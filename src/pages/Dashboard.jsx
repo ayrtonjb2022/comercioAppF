@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
-import CajaView from "../components/CajaView";
+import CajaView from "./CajaView";
 import ListaProductos from "./ListaProductos";
 import VistaIngresosGastos from "./VistaIngresosGastos";
 import VistaCajas from "./VistaCajas";
