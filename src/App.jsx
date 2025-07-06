@@ -6,6 +6,7 @@ import PrivateRoute from './components/PrivateRouter'; // Asegúrate que el nomb
 import Login from "./pages/LoginRegister";
 import Dashboard from "./pages/Dashboard";
 import Home from  "./pages/Home";
+import NotFound from './pages/NotFound';
 export default function App() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem("token"));
