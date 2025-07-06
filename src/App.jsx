@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import PrivateRoute from './components/PrivateRouter'; // Asegúrate que el nombre del archivo esté bien escrito (mayúsculas/minúsculas)
 import Login from "./pages/LoginRegister";
 import Dashboard from "./pages/Dashboard";
+import Home from  "./pages/Home";
 export default function App() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem("token"));
@@ -25,7 +26,11 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+
+
+        <Route path="/" element={<Home />} />
+
 
         {/* Rutas Privadas */}
         <Route
