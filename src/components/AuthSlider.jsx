@@ -33,7 +33,6 @@ export default function AuthSlider() {
     e.preventDefault();
     try {
       const response = await postLogin(dataLogin);
-      console.log("Respuesta login:", response);
       navigate("/dashboard"); // Reemplazar con tu ruta
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
@@ -49,7 +48,6 @@ export default function AuthSlider() {
     }
     try {
       const response = await postRegister(dataRegister);
-      console.log("Respuesta registro:", response);
       alert("Registro exitoso. Inicia sesión.");
       setShowRegister(false);
       setDataRegister({

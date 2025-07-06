@@ -32,7 +32,6 @@ export default function Dashboard() {
           const formatoFechaCaja = fechaCaja.toISOString().split("T")[0];
           if(formatoFechaCaja === fechaHoy){
             setCajaId(caja.id)
-            console.log(caja.id);
           }
           
           
@@ -54,7 +53,6 @@ export default function Dashboard() {
   }, []);
 
   const crearCaja = async (monto) => {
-    console.log("Crear caja con ingreso inicial:", monto);
     try {
       const res = await postCaja({saldoInicial:monto})
       setCajaId(res.data.nuevaCaja);

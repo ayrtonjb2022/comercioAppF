@@ -20,7 +20,6 @@ export default function CajaView({ id }) {
     return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
   }
 
-  console.log(getFechaHoraLocalISO());
 
 
   const totalBruto = ticket.reduce(
@@ -55,7 +54,6 @@ export default function CajaView({ id }) {
       medio_pago: venta.medio_pago,
       detalles
     };
-    console.log("medio");
 
 
     try {
@@ -68,7 +66,6 @@ export default function CajaView({ id }) {
         cajaId: id
       }
       const resMovimiento = await postMovimiento(dataMovimiento);
-      console.log("Venta registrada:", response.data);
       setTicket([]);
     } catch (error) {
       console.error("Error al registrar venta:", error);

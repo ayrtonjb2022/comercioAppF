@@ -17,7 +17,6 @@ export default function VistaIngresosGastos({id}) {
   return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
 }
 
-console.log(getFechaHoraLocalISO());
 
 
 
@@ -36,7 +35,6 @@ console.log(getFechaHoraLocalISO());
     const getAllMovimientos = async () => {
       try {
         const response = await getMovimiento();
-        console.log(response.data);
         
         setMovimientos(response.data.movimientos || []);
       } catch (error) {
@@ -78,7 +76,6 @@ console.log(getFechaHoraLocalISO());
     };
 
     setMovimientos((prev) => [...prev, nuevo]);
-    console.log("Nuevo movimiento:", nuevo);
     await postMovimiento(nuevo)
 
     setNuevoMovimiento({

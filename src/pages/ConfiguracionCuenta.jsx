@@ -23,7 +23,6 @@ export default function ConfiguracionCuenta() {
   useEffect(() => {
     const datosUs = async () => {
       const res = await getDataUs();
-      console.log(res);
       setUsuario(res);
     };
     datosUs();
