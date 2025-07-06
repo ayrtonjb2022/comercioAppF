@@ -10,17 +10,17 @@ export default function CajaView({ id }) {
   const [totalVenta, setTotalVenta] = useState(0);
 
   function getFechaHoraLocalISO() {
-  const fecha = new Date();
-  const año = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
-  const hora = String(fecha.getHours()).padStart(2, "0");
-  const minutos = String(fecha.getMinutes()).padStart(2, "0");
-  const segundos = String(fecha.getSeconds()).padStart(2, "0");
-  return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
-}
+    const fecha = new Date();
+    const año = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dia = String(fecha.getDate()).padStart(2, "0");
+    const hora = String(fecha.getHours()).padStart(2, "0");
+    const minutos = String(fecha.getMinutes()).padStart(2, "0");
+    const segundos = String(fecha.getSeconds()).padStart(2, "0");
+    return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
+  }
 
-console.log(getFechaHoraLocalISO());
+  console.log(getFechaHoraLocalISO());
 
 
   const totalBruto = ticket.reduce(
@@ -43,7 +43,8 @@ console.log(getFechaHoraLocalISO());
       cantidad: item.cantidad,
       precio_unitario: item.precio,
       total: parseFloat((item.precio * item.cantidad * (1 - item.descuento / 100)).toFixed(2)),
-      descuento: parseFloat(((item.precio * item.cantidad * item.descuento) / 100).toFixed(2))
+      descuento: parseFloat(item.descuento) // ya está en porcentaje
+
     }));
 
 
