@@ -149,18 +149,17 @@ export default function CajaView({ id }) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900">
-      {/* Panel Ticket */}
 
+
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900">
       <VentaModal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         total={totalVenta}
         onConfirm={manejarConfirmacion}
       />
-
       {/* Panel Ticket Detalle */}
-      <section className="md:w-1/4 border-b md:border-b-0 md:border-r border-gray-300 p-4 flex flex-col max-h-60 md:max-h-full overflow-y-auto">
+      <section className="w-full md:w-1/4 p-4 flex flex-col flex-1 md:flex-none md:max-h-full border-b md:border-b-0 md:border-r border-gray-300 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Ticket</h2>
         <div className="flex-grow overflow-y-auto">
           {ticket.length === 0 ? (
@@ -173,7 +172,7 @@ export default function CajaView({ id }) {
               >
                 <div className="flex flex-col flex-grow">
                   <span className="font-medium">{nombre}</span>
-                  <div className="flex space-x-2 text-sm text-gray-600">
+                  <div className="flex flex-wrap gap-2 text-sm text-gray-600 mt-1">
                     <input
                       type="number"
                       min={1}
@@ -181,7 +180,7 @@ export default function CajaView({ id }) {
                       onChange={(e) =>
                         actualizarItem(id, parseInt(e.target.value) || 1, null)
                       }
-                      className="w-16 border rounded px-1"
+                      className="w-20 border rounded px-2 py-1"
                       aria-label={`Cantidad de ${nombre}`}
                     />
                     <input
@@ -192,7 +191,7 @@ export default function CajaView({ id }) {
                       onChange={(e) =>
                         actualizarItem(id, null, parseInt(e.target.value) || 0)
                       }
-                      className="w-20 border rounded px-1"
+                      className="w-24 border rounded px-2 py-1"
                       aria-label={`Descuento % de ${nombre}`}
                       placeholder="% Desc"
                     />
@@ -200,8 +199,7 @@ export default function CajaView({ id }) {
                 </div>
                 <div className="flex flex-col items-end ml-4">
                   <span>
-                    $
-                    {(precio * cantidad * (1 - descuento / 100)).toFixed(2)}
+                    ${(precio * cantidad * (1 - descuento / 100)).toFixed(2)}
                   </span>
                   <button
                     onClick={() => quitarProducto(id)}
@@ -218,7 +216,7 @@ export default function CajaView({ id }) {
       </section>
 
       {/* Panel Productos */}
-      <section className="md:w-2/4 p-4 flex flex-col flex-grow overflow-auto">
+      <section className="w-full md:w-2/4 p-4 flex flex-col flex-1 md:flex-none overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Productos</h2>
         <input
           type="text"
@@ -228,7 +226,7 @@ export default function CajaView({ id }) {
           className="mb-4 p-2 border rounded"
           aria-label="Buscar productos"
         />
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto flex-grow">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-grow overflow-y-auto">
           {productosFiltrados.length === 0 ? (
             <p className="text-center text-gray-500 col-span-full mt-10">
               No se encontraron productos
@@ -259,7 +257,7 @@ export default function CajaView({ id }) {
       </section>
 
       {/* Panel Totales */}
-      <section className="md:w-1/4 border-l border-gray-300 p-4 flex flex-col">
+      <section className="w-full md:w-1/4 p-4 flex flex-col flex-1 md:flex-none border-t md:border-t-0 md:border-l border-gray-300 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Totales</h2>
         <div className="flex flex-col gap-3 flex-grow justify-center text-lg font-medium">
           <div className="flex justify-between">
@@ -283,5 +281,6 @@ export default function CajaView({ id }) {
         </div>
       </section>
     </div>
+
   );
 }

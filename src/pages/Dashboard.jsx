@@ -113,8 +113,11 @@ window.location.reload();
       {privado === false && (
   <>
     <Sidebar selected={pagina} onSelect={setPagina} />
-    <main className="flex-1 overflow-y-auto p-4">
-      {pagina === "cajaventa" && <CajaView id={cajaId} />}
+<main
+  className={`flex-1 overflow-y-auto p-4 ${
+    pagina === "cajaventa" ? "flex flex-col md:flex-row h-[calc(100vh-2rem)]" : ""
+  }`}
+>      {pagina === "cajaventa" && <CajaView id={cajaId} />}
       {pagina === "productos" && <ListaProductos />}
       {pagina === "analisis" && <VistaIngresosGastos id={cajaId}/>}
       {pagina === "cajasdiarias" && <VistaCajas data={cajaData}  />}
