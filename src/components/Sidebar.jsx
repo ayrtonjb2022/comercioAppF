@@ -24,6 +24,7 @@ export default function Sidebar({ selected, onSelect }) {
   const [collapsed, setCollapsed] = useState(true);
 
   const handleLogout = () => {
+    sessionStorage.removeItem("toke");
     alert("Cerrando sesión...");
     // Aquí podrías limpiar el token o redirigir a login
   };
