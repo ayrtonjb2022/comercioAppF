@@ -16,14 +16,16 @@ export default function VentasDetalle() {
   const [totalVendido, setTotalVendido] = useState(0);
   const [totalGanancia, setTotalGanancia] = useState(0);
   const [totalPorMedioPago, setTotalPorMedioPago] = useState({});
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchVentas = async () => {
+      setCargando(true);
       try {
         const res = await getDetalleVentas();
         if (!res || !res.ventas) {
-          console.warn("No se encontraron ventas");
-          return;
+          throw new Error("No se encontraron ventas.");
         }
 
         let ventasFiltradas = res.ventas;
@@ -43,7 +45,6 @@ export default function VentasDetalle() {
           );
         }
 
-        // Calcular total por medio de pago filtrado
         const totalesPorMedio = ventasFiltradas.reduce((acc, venta) => {
           const medio = venta.medio_pago?.toLowerCase() || "desconocido";
           const total = parseFloat(venta.total) || 0;
@@ -61,6 +62,10 @@ export default function VentasDetalle() {
         calcularTotalGanancia(todasLasVentas);
       } catch (error) {
         console.error("Error al obtener las ventas:", error);
+        setError("Hubo un error al obtener las ventas.");
+        setTimeout(() => setError(""), 30000);
+      } finally {
+        setCargando(false);
       }
     };
 
@@ -111,7 +116,22 @@ export default function VentasDetalle() {
     });
 
   return (
-    <div className="p-6">
+    <div className="p-6 relative min-h-screen">
+
+      {/* Overlay de carga */}
+      {cargando && (
+        <div className="fixed inset-0 bg-white bg-opacity-70 z-40 flex items-center justify-center pointer-events-auto">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        </div>
+      )}
+
+      {/* Mensaje de error */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-50">
+          {error}
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <FaChartBar /> Detalle de Ventas

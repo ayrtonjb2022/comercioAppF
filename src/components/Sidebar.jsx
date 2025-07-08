@@ -28,9 +28,18 @@ export default function Sidebar({ selected, onSelect }) {
   const handleLogout = () => {
     sessionStorage.removeItem("token");
     navigate("/login");
-    alert("Cerrando sesión...");
+    salirPantallaCompleta()
   };
 
+  const salirPantallaCompleta = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  };
   return (
     <>
       {/* Botón visible solo en mobile */}

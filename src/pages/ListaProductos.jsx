@@ -12,26 +12,35 @@ export default function VistaProductos() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
   const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const getProductos = async () => {
-      const response = await getProductosall();
-      const productosRaw = response?.data?.productos || [];
+      setCargando(true);
+      try {
+        const response = await getProductosall();
+        const productosRaw = response?.data?.productos || [];
 
-      // Normalizar datos recibidos
-      const productosFormateados = productosRaw.map((p) => ({
-        ...p,
-        descripcion: p.descripcion ?? "",
-        categoria: p.categoria ?? "",
-        activo: p.activo !== null ? Boolean(p.activo) : true,
-      }));
+        const productosFormateados = productosRaw.map((p) => ({
+          ...p,
+          descripcion: p.descripcion ?? "",
+          categoria: p.categoria ?? "",
+          activo: p.activo !== null ? Boolean(p.activo) : true,
+        }));
 
-      // Filtro solo por existencia de id y nombre
-      const productosValidos = productosFormateados.filter(
-        (p) => p?.id && p?.nombre
-      );
+        const productosValidos = productosFormateados.filter(
+          (p) => p?.id && p?.nombre
+        );
 
-      setProductos(productosValidos);
+        setProductos(productosValidos);
+      } catch (err) {
+        console.error("Error al cargar productos:", err);
+        setError("Error al cargar productos.");
+        setTimeout(() => setError(""), 30000);
+      } finally {
+        setCargando(false);
+      }
     };
 
     getProductos();
@@ -106,7 +115,21 @@ export default function VistaProductos() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-6 relative">
+      {/* ERROR */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-50">
+          {error}
+        </div>
+      )}
+
+      {/* CARGANDO */}
+      {cargando && (
+        <div className="fixed inset-0 bg-white bg-opacity-70 z-40 flex items-center justify-center pointer-events-auto">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Gestión de Productos</h1>
@@ -138,9 +161,7 @@ export default function VistaProductos() {
                 <h3 className="text-xl font-semibold text-gray-800">{p.nombre}</h3>
                 <p className="text-gray-600 text-sm mb-2">{p.descripcion}</p>
                 <div className="text-sm space-y-1 text-gray-700">
-                  <p>
-                    <strong>Categoría:</strong> {p.categoria}
-                  </p>
+                  <p><strong>Categoría:</strong> {p.categoria}</p>
                   <p>
                     <strong>Stock:</strong>{" "}
                     <span
@@ -155,9 +176,7 @@ export default function VistaProductos() {
                     <strong>Precio Venta:</strong> ${p.precioVenta}{" "}
                     <span className="text-gray-400 text-xs">(Compra: ${p.precioCompra})</span>
                   </p>
-                  <p>
-                    <strong>Ganancia:</strong> {p.porcentajeGanancia}%
-                  </p>
+                  <p><strong>Ganancia:</strong> {p.porcentajeGanancia}%</p>
                   <p>
                     <strong>Estado:</strong>{" "}
                     {p.activo ? (

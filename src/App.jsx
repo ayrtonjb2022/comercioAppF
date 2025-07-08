@@ -2,7 +2,7 @@ import './App.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
-import PrivateRoute from './components/PrivateRouter'; // Asegúrate que el nombre del archivo esté bien escrito (mayúsculas/minúsculas)
+import PrivateRoute from './components/PrivateRouter'; //
 import Login from "./pages/LoginRegister";
 import Dashboard from "./pages/Dashboard";
 import Home from  "./pages/Home";

@@ -76,7 +76,7 @@ export default function ConfiguracionCuenta() {
 
   const eliminarCuenta = () => {
     alert("Cuenta eliminada (simulado)");
-    // Aquí puedes agregar la lógica real de eliminación de cuenta
+    
   };
 
   return (

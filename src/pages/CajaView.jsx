@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getProductosall, postVendas, postMovimiento } from "../api/webApi";
-import VentaModal from '../components/VentaModal';
+import VentaModal from "../components/VentaModal";
 
 export default function CajaView({ id }) {
   const [filtro, setFiltro] = useState("");
@@ -8,6 +8,8 @@ export default function CajaView({ id }) {
   const [productosG, setProductosG] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [totalVenta, setTotalVenta] = useState(0);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   function getFechaHoraLocalISO() {
     const fecha = new Date();
@@ -19,8 +21,6 @@ export default function CajaView({ id }) {
     const segundos = String(fecha.getSeconds()).padStart(2, "0");
     return `${año}-${mes}-${dia}T${hora}:${minutos}:${segundos}`;
   }
-
-
 
   const totalBruto = ticket.reduce(
     (acc, item) => acc + item.precio * item.cantidad,
@@ -41,31 +41,29 @@ export default function CajaView({ id }) {
       producto_id: item.id,
       cantidad: item.cantidad,
       precio_unitario: item.precio,
-      total: parseFloat((item.precio * item.cantidad * (1 - item.descuento / 100)).toFixed(2)),
-      descuento: parseFloat(item.descuento) // ya está en porcentaje
-
+      total: parseFloat(
+        (item.precio * item.cantidad * (1 - item.descuento / 100)).toFixed(2)
+      ),
+      descuento: parseFloat(item.descuento),
     }));
-
 
     const ventaCompleta = {
       fecha: getFechaHoraLocalISO(),
       total: parseFloat(totalNeto.toFixed(2)),
-      cajaId: id, // Cambia este valor si usás caja dinámica
+      cajaId: id,
       medio_pago: venta.medio_pago,
-      detalles
+      detalles,
     };
 
-
     try {
-      const response = await postVendas(ventaCompleta);
-      const dataMovimiento = {
+      await postVendas(ventaCompleta);
+      await postMovimiento({
         tipo: "ingreso",
         monto: totalNeto,
         descripcion: "Venta",
         fecha: getFechaHoraLocalISO(),
-        cajaId: id
-      }
-      const resMovimiento = await postMovimiento(dataMovimiento);
+        cajaId: id,
+      });
       setTicket([]);
     } catch (error) {
       console.error("Error al registrar venta:", error);
@@ -76,11 +74,11 @@ export default function CajaView({ id }) {
 
   useEffect(() => {
     const getProductosUs = async () => {
+      setCargando(true);
       try {
         const response = await getProductosall();
         const productos = response?.data?.productos || [];
 
-        // Normalización de productos
         const productosFormateados = productos.map((p) => ({
           ...p,
           descripcion: p.descripcion ?? "",
@@ -88,11 +86,16 @@ export default function CajaView({ id }) {
           activo: p.activo !== null ? Boolean(p.activo) : true,
         }));
 
-        const productosValidos = productosFormateados.filter((p) => p?.id && p?.nombre);
+        const productosValidos = productosFormateados.filter(
+          (p) => p?.id && p?.nombre
+        );
         setProductosG(productosValidos);
       } catch (error) {
         console.error("Error al obtener productos:", error);
-        setProductosG([]);
+        setError("Error al obtener productos.");
+        setTimeout(() => setError(""), 30000);
+      } finally {
+        setCargando(false);
       }
     };
 
@@ -102,7 +105,6 @@ export default function CajaView({ id }) {
   const productosFiltrados = productosG.filter((p) =>
     `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
   );
-
 
   const agregarProducto = (producto) => {
     const precio = parseFloat(producto.precioVenta) || 0;
@@ -136,26 +138,40 @@ export default function CajaView({ id }) {
       prev.map((item) =>
         item.id === id
           ? {
-            ...item,
-            cantidad: cantidad !== null ? cantidad : item.cantidad,
-            descuento: descuento !== null ? descuento : item.descuento,
-          }
+              ...item,
+              cantidad: cantidad !== null ? cantidad : item.cantidad,
+              descuento: descuento !== null ? descuento : item.descuento,
+            }
           : item
       )
     );
   };
 
   return (
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900 relative">
 
+      {/* Spinner de carga */}
+      {cargando && (
+        <div className="fixed inset-0 bg-white bg-opacity-70 z-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        </div>
+      )}
 
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50 text-gray-900">
+      {/* Mensaje de error */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-50">
+          {error}
+        </div>
+      )}
+
       <VentaModal
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
         total={totalVenta}
         onConfirm={manejarConfirmacion}
       />
-      {/* Panel Ticket Detalle */}
+
+      {/* Panel Ticket */}
       <section className="w-full md:w-1/4 p-4 flex flex-col flex-1 md:flex-none md:max-h-full border-b md:border-b-0 md:border-r border-gray-300 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Ticket</h2>
         <div className="flex-grow overflow-y-auto">
@@ -178,7 +194,6 @@ export default function CajaView({ id }) {
                         actualizarItem(id, parseInt(e.target.value) || 1, null)
                       }
                       className="w-20 border rounded px-2 py-1"
-                      aria-label={`Cantidad de ${nombre}`}
                     />
                     <input
                       type="number"
@@ -186,10 +201,13 @@ export default function CajaView({ id }) {
                       max={100}
                       value={descuento}
                       onChange={(e) =>
-                        actualizarItem(id, null, parseInt(e.target.value) || 0)
+                        actualizarItem(
+                          id,
+                          null,
+                          parseInt(e.target.value) || 0
+                        )
                       }
                       className="w-24 border rounded px-2 py-1"
-                      aria-label={`Descuento % de ${nombre}`}
                       placeholder="% Desc"
                     />
                   </div>
@@ -201,7 +219,6 @@ export default function CajaView({ id }) {
                   <button
                     onClick={() => quitarProducto(id)}
                     className="text-red-600 hover:text-red-800 text-sm"
-                    aria-label={`Quitar ${nombre}`}
                   >
                     &times;
                   </button>
@@ -221,7 +238,6 @@ export default function CajaView({ id }) {
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
           className="mb-4 p-2 border rounded"
-          aria-label="Buscar productos"
         />
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-grow overflow-y-auto">
           {productosFiltrados.length === 0 ? (
@@ -242,7 +258,6 @@ export default function CajaView({ id }) {
                     })
                   }
                   className="border rounded p-4 bg-white shadow hover:shadow-lg transition"
-                  aria-label={`Agregar ${nombre}`}
                 >
                   <h3 className="font-semibold">{nombre}</h3>
                   <p className="text-gray-600">${precio.toFixed(2)}</p>
@@ -278,6 +293,5 @@ export default function CajaView({ id }) {
         </div>
       </section>
     </div>
-
   );
 }

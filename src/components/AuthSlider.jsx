@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 export default function AuthSlider() {
   const navigate = useNavigate();
   const [showRegister, setShowRegister] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   const [dataLogin, setDataLogin] = useState({
     email: "", 
@@ -19,6 +21,17 @@ export default function AuthSlider() {
     confirmPassword: ""
   });
 
+  const entrarPantallaCompleta = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setDataLogin({ ...dataLogin, [name]: value });
@@ -29,23 +42,36 @@ export default function AuthSlider() {
     setDataRegister({ ...dataRegister, [name]: value });
   };
 
-  const handleSubmit = async (e) => { // LOGIN
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setCargando(true);
+    setError("");
+
     try {
       const response = await postLogin(dataLogin);
-      navigate("/dashboard"); // Reemplazar con tu ruta
+      entrarPantallaCompleta();
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
-      alert("Error al iniciar sesión. Verifica tus credenciales.");
+      setError("Error al iniciar sesión. Verifica tus credenciales.");
+      setTimeout(() => setError(""), 30000);
+    } finally {
+      setCargando(false);
     }
   };
 
-  const handleSubmitR = async (e) => { // REGISTRO
+  const handleSubmitR = async (e) => {
     e.preventDefault();
+    setCargando(true);
+    setError("");
+
     if (dataRegister.password !== dataRegister.confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      setError("Las contraseñas no coinciden.");
+      setTimeout(() => setError(""), 30000);
+      setCargando(false);
       return;
     }
+
     try {
       const response = await postRegister(dataRegister);
       alert("Registro exitoso. Inicia sesión.");
@@ -55,12 +81,15 @@ export default function AuthSlider() {
       });
     } catch (error) {
       console.error("Error al registrarse:", error);
-      alert("Hubo un error al registrarse.");
+      setError("Error al registrarse. Intenta más tarde.");
+      setTimeout(() => setError(""), 30000);
+    } finally {
+      setCargando(false);
     }
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
+    <div className="flex h-screen items-center justify-center bg-gray-100 relative">
       <div className="relative w-full max-w-4xl h-[500px] overflow-hidden shadow-2xl rounded-2xl bg-white flex">
 
         {/* Lado izquierdo decorativo */}
@@ -188,6 +217,20 @@ export default function AuthSlider() {
 
         </div>
       </div>
+
+      {/* Overlay de carga */}
+      {cargando && (
+        <div className="fixed inset-0 bg-white bg-opacity-70 z-50 flex items-center justify-center pointer-events-auto">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        </div>
+      )}
+
+      {/* Mensaje de error */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-50">
+          {error}
+        </div>
+      )}
     </div>
   );
 }
