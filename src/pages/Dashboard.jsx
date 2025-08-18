@@ -6,15 +6,118 @@ import VistaIngresosGastos from "./VistaIngresosGastos";
 import VistaCajas from "./VistaCajas";
 import ConfiguracionCuenta from "./ConfiguracionCuenta";
 import VentasDetalle from "./VentasDetalle";
+import Servicios from "./Servicios";
 import { getCajas, postCaja } from '../api/webApi';
-import { FaPlus } from "react-icons/fa";
+import { 
+  FaCashRegister, 
+  FaPlus, 
+  FaCalendarDay, 
+  FaMoneyBillWave,
+  FaRocket
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
-// ✅ Función para obtener fecha local en formato YYYY-MM-DD
+// 1. Crear archivo CSS para las animaciones
+import '../DashboardAnimations.css';
+
 function obtenerFechaLocalISO(date = new Date()) {
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().split("T")[0];
 }
+
+// Componente de animación reutilizable
+const CreationAnimation = ({ message, planetColor = "blue" }) => (
+  <motion.div 
+    className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    {/* Fondo estrellado */}
+    <div className="absolute inset-0">
+      {[...Array(200)].map((_, i) => (
+        <div
+          key={`star-${i}`} // 2. Key única para cada estrella
+          className="absolute rounded-full bg-white"
+          style={{
+            width: `${Math.random() * 3}px`,
+            height: `${Math.random() * 3}px`,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            opacity: Math.random() * 0.8 + 0.2,
+            animation: `twinkle ${2 + Math.random() * 3}s infinite alternate`
+          }}
+        />
+      ))}
+    </div>
+    
+    {/* Planeta - Solucionado problema de clases dinámicas */}
+    <motion.div
+      className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+      initial={{ scale: 0.5, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 1 }}
+    >
+      <div className={
+        planetColor === "green" 
+          ? "w-64 h-64 rounded-full bg-gradient-to-br from-green-700 to-green-900 relative overflow-hidden"
+          : "w-64 h-64 rounded-full bg-gradient-to-br from-blue-700 to-blue-900 relative overflow-hidden"
+      }>
+        <div className="absolute w-full h-full bg-gray-900 opacity-20 top-0 left-0"></div>
+        <div className={
+          planetColor === "green"
+            ? "absolute w-32 h-32 rounded-full bg-green-500 opacity-30 top-10 left-10"
+            : "absolute w-32 h-32 rounded-full bg-blue-500 opacity-30 top-10 left-10"
+        }></div>
+      </div>
+    </motion.div>
+    
+    {/* Nave espacial */}
+    <motion.div
+      className="text-6xl text-emerald-400 z-10 mb-8"
+      animate={{ 
+        y: [0, -20, 0],
+        rotate: [0, -5, 0],
+      }}
+      transition={{ 
+        duration: 2,
+        repeat: Infinity,
+        repeatType: "reverse"
+      }}
+    >
+      <FaRocket />
+    </motion.div>
+    
+    {/* Humo/llamas */}
+    <motion.div
+      className="absolute w-16 h-16 bg-gradient-to-t from-orange-500 to-yellow-300 rounded-full blur-xl"
+      initial={{ scale: 0.5, opacity: 0 }}
+      animate={{ 
+        scale: [1, 1.2, 1], 
+        opacity: [0.8, 1, 0.8],
+        transition: { 
+          duration: 0.5,
+          repeat: Infinity,
+          repeatType: "reverse"
+        } 
+      }}
+      style={{ top: '60%', left: '50%', transform: 'translateX(-50%)' }}
+    />
+    
+    {/* Mensaje */}
+    <motion.div 
+      className="text-center text-white z-10"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <h2 className="text-3xl font-bold mb-2">Procesando</h2>
+      <p className="text-xl opacity-80">{message}</p>
+    </motion.div>
+  </motion.div>
+);
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,108 +125,299 @@ export default function Dashboard() {
   const [privado, setPrivado] = useState(false);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [ingresoInicial, setIngresoInicial] = useState("");
-  const fechaHoy = obtenerFechaLocalISO(); // ✅ corregido
-  const [cajaData, setCajaData] = useState({});
+  const fechaHoy = obtenerFechaLocalISO();
+  const [cajaData, setCajaData] = useState([]);
   const [cajaId, setCajaId] = useState(0);
+  const [cargando, setCargando] = useState(true);
+  const [showLaunchAnimation, setShowLaunchAnimation] = useState(false);
+  const [firstLogin, setFirstLogin] = useState(true);
+  const [isCreatingBox, setIsCreatingBox] = useState(false);
+  const [creationMessage, setCreationMessage] = useState("");
 
   useEffect(() => {
     const getFechaCaja = async () => {
       try {
+        setCargando(true);
         const res = await getCajas();
         setCajaData(res);
+        
         const existe = res.some((caja) => {
           if (!caja.creadoEl) return false;
           const fechaCaja = new Date(caja.creadoEl);
           if (isNaN(fechaCaja)) return false;
-
-          // ✅ Ajustar fecha al horario local
+          
           const fechaLocalCaja = obtenerFechaLocalISO(fechaCaja);
-
+          
           if (fechaLocalCaja === fechaHoy) {
             setCajaId(caja.id);
             return true;
           }
-
+          
           return false;
         });
-
+        
         if (!existe) {
-          setMostrarModal(true);
-          setPrivado(true);
+          // Primera vez que inicia sesión hoy
+          if (firstLogin) {
+            setShowLaunchAnimation(true);
+            setFirstLogin(false);
+          } else {
+            setMostrarModal(true);
+            setPrivado(true);
+          }
         }
       } catch (error) {
         console.error("Error al obtener cajas:", error);
+      } finally {
+        setCargando(false);
       }
     };
-
+    
     getFechaCaja();
   }, []);
-
+  
   const crearCaja = async (monto) => {
+    if (!monto || isNaN(Number(monto))) {
+      alert("Por favor ingrese un monto válido");
+      return;
+    }
+    
     try {
+      // Activar animación de creación
+      setIsCreatingBox(true);
+      setCreationMessage("Creando tu nueva caja...");
+      setMostrarModal(false);
+      
       const res = await postCaja({ saldoInicial: monto });
       setCajaId(res.data.nuevaCaja);
       setPrivado(false);
-      navigate('/dashboard');
-      window.location.reload();
+      
+      // Finalizar animación después de 2 segundos
+      setTimeout(() => {
+        setIsCreatingBox(false);
+        setCargando(false);
+      }, 2000);
     } catch (error) {
       console.log(error);
+      alert("Error al crear la caja");
+      setIsCreatingBox(false);
     }
-    setMostrarModal(false);
-    setIngresoInicial("");
+  };
+
+  // Finalizar animación de lanzamiento
+  const finishLaunchAnimation = () => {
+    setShowLaunchAnimation(false);
+    setMostrarModal(true);
+    setPrivado(true);
   };
 
   return (
-    <div className="flex min-h-screen h-screen">
-      {/* MODAL siempre que no haya caja */}
-      {mostrarModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md relative">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <FaPlus /> Crear nueva caja
-            </h2>
-
-            <div className="mb-4">
-              <label className="block font-semibold mb-1">Fecha:</label>
-              <p className="bg-gray-100 px-3 py-2 rounded">{fechaHoy}</p>
+    <div className="flex min-h-screen h-screen relative overflow-hidden bg-gray-50">
+      {/* Animación de lanzamiento inicial */}
+      <AnimatePresence>
+        {showLaunchAnimation && (
+          <motion.div 
+            key="launch-screen" // 3. Key única para animación
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+          >
+            <div className="absolute inset-0">
+              {[...Array(200)].map((_, i) => (
+                <div
+                  key={`launch-star-${i}`} // 4. Key única para cada estrella
+                  className="absolute rounded-full bg-white"
+                  style={{
+                    width: `${Math.random() * 3}px`,
+                    height: `${Math.random() * 3}px`,
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    opacity: Math.random() * 0.8 + 0.2,
+                    animation: `twinkle ${2 + Math.random() * 3}s infinite alternate`
+                  }}
+                />
+              ))}
             </div>
-
-            <div className="mb-6">
-              <label className="block font-semibold mb-1">Ingreso inicial:</label>
-              <input
-                type="number"
-                value={ingresoInicial}
-                onChange={(e) => setIngresoInicial(e.target.value)}
-                className="w-full border px-3 py-2 rounded"
-                placeholder="Ej: 10000"
-              />
-            </div>
-
-            <button
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full"
-              onClick={() => crearCaja(ingresoInicial)}
+            
+            <motion.div
+              className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 1.5 }}
             >
-              Crear caja
-            </button>
-          </div>
+              <div className="w-64 h-64 rounded-full bg-gradient-to-br from-blue-700 to-blue-900 relative overflow-hidden">
+                <div className="absolute w-full h-full bg-gray-900 opacity-20 top-0 left-0"></div>
+                <div className="absolute w-32 h-32 rounded-full bg-blue-500 opacity-30 top-10 left-10"></div>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              className="text-6xl text-blue-400 z-10"
+              initial={{ y: 300, x: -50, rotate: 0 }}
+              animate={{ 
+                y: -500, 
+                x: 50, 
+                rotate: -20,
+                transition: { 
+                  duration: 4, 
+                  ease: "easeOut"
+                } 
+              }}
+              onAnimationComplete={finishLaunchAnimation}
+            >
+              <FaRocket />
+            </motion.div>
+            
+            <motion.div
+              className="absolute w-16 h-16 bg-gradient-to-t from-orange-500 to-yellow-300 rounded-full blur-xl"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ 
+                scale: [1, 1.2, 1], 
+                opacity: [0.8, 1, 0.8],
+                transition: { 
+                  duration: 0.5,
+                  repeat: Infinity,
+                  repeatType: "reverse"
+                } 
+              }}
+              style={{ top: '60%', left: '50%', transform: 'translateX(-50%)' }}
+            />
+            
+            <motion.div 
+              className="text-center mt-24 text-white z-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1, duration: 1 }}
+            >
+              <h2 className="text-3xl font-bold mb-2">Bienvenido a ComercioApp</h2>
+              <p className="text-xl opacity-80">Preparando tu espacio de trabajo...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Animación para creación de caja */}
+      <AnimatePresence>
+        {isCreatingBox && (
+          <CreationAnimation 
+            key="box-creation" // 5. Key única para animación
+            message={creationMessage} 
+            planetColor="green"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Spinner de carga */}
+      {cargando && !showLaunchAnimation && !isCreatingBox && (
+        <div className="fixed inset-0 bg-white bg-opacity-80 z-40 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid"></div>
         </div>
       )}
-
+      
+      {/* Modal para crear nueva caja */}
+      {mostrarModal && !isCreatingBox && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
+          <motion.div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-5">
+              <div className="flex items-center gap-3">
+                <FaCashRegister className="text-3xl" />
+                <div>
+                  <h2 className="text-xl font-bold">Crear nueva caja</h2>
+                  <p className="text-sm opacity-80">Inicia las operaciones del día</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <FaCalendarDay className="text-blue-500" />
+                <div>
+                  <div className="text-sm text-gray-500">Fecha</div>
+                  <div className="font-medium">{fechaHoy}</div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ingreso inicial *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={ingresoInicial}
+                    onChange={(e) => setIngresoInicial(e.target.value)}
+                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: 10000"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-4 flex gap-3">
+                <button
+                  onClick={() => {
+                    setMostrarModal(false);
+                    navigate('/login');
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => crearCaja(ingresoInicial)}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:to-blue-900 transition flex items-center justify-center gap-2"
+                >
+                  <FaPlus /> Crear caja
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      
       {/* CONTENIDO PRINCIPAL */}
-      {!privado && (
+      {!privado && !showLaunchAnimation && !isCreatingBox && (
         <>
           <Sidebar selected={pagina} onSelect={setPagina} />
-          <main
-            className={`flex-1 overflow-y-auto p-4 ${
-              pagina === "cajaventa" ? "flex flex-col md:flex-row h-[calc(100vh-2rem)]" : ""
-            }`}
-          >
+          
+          {/* Cabecera para móviles */}
+          <div className="md:hidden fixed top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 z-30 shadow-md">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold">
+                {pagina === "cajaventa" && "Caja Venta"}
+                {pagina === "productos" && "Productos"}
+                {pagina === "analisis" && "Análisis"}
+                {pagina === "cajasdiarias" && "Cajas Diarias"}
+                {pagina === "configuracion" && "Configuración"}
+                {pagina === "VentasDetalle" && "Ventas Detalle"}
+                {pagina === "Servicios" && "Servicios"}
+              </h1>
+              {pagina === "cajaventa" && (
+                <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                  <FaMoneyBillWave />
+                  <span>${cajaData.length > 0 ? cajaData[0].totalInicial.toFixed(2) : '0.00'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${pagina === "cajaventa" ? "h-[calc(100vh-4rem)] md:h-full" : "p-4"}`}>
             {pagina === "cajaventa" && <CajaView id={cajaId} />}
             {pagina === "productos" && <ListaProductos />}
             {pagina === "analisis" && <VistaIngresosGastos id={cajaId} />}
             {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
             {pagina === "configuracion" && <ConfiguracionCuenta />}
             {pagina === "VentasDetalle" && <VentasDetalle />}
+            {pagina === "Servicios" && <Servicios cajaId={cajaId} />}
           </main>
         </>
       )}

@@ -6,6 +6,7 @@ import PrivateRoute from './components/PrivateRouter'; //
 import Login from "./pages/LoginRegister";
 import Dashboard from "./pages/Dashboard";
 import Home from  "./pages/Home";
+import NotFound from "./pages/NotFound"
 export default function App() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem("token"));
@@ -30,7 +31,7 @@ export default function App() {
 
 
         <Route path="/" element={<Home />} />
-
+        
 
         {/* Rutas Privadas */}
         <Route
@@ -46,7 +47,7 @@ export default function App() {
         {/* Ruta por defecto si no se encuentra coincidencia */}
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />}
+          element={<NotFound />}
         />
 
 
