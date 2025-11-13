@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaCreditCard, FaMoneyBillWave, FaWallet } from 'react-icons/fa';
+import { FaTimes, FaCreditCard, FaMoneyBillWave, FaWallet, FaCheckCircle } from 'react-icons/fa';
 
 export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
   const [medioPago, setMedioPago] = useState('efectivo');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     if (isSubmitting) {
       const timer = setTimeout(() => {
-        onClose();
-        setIsSubmitting(false); 
-      }, 2000);
+        setIsSubmitting(false);
+        setIsSuccess(true);
+        
+        const successTimer = setTimeout(() => {
+          onClose();
+          setIsSuccess(false);
+        }, 2000);
+
+        return () => clearTimeout(successTimer);
+      }, 1500);
 
       return () => clearTimeout(timer);
     }
@@ -21,15 +29,15 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
   const getIconoMedioPago = () => {
     switch(medioPago) {
       case 'efectivo':
-        return <FaMoneyBillWave className="text-green-600 mr-2" />;
+        return <FaMoneyBillWave className="text-green-600 text-xl" />;
       case 'debito':
-        return <FaCreditCard className="text-blue-600 mr-2" />;
+        return <FaCreditCard className="text-blue-600 text-xl" />;
       case 'credito':
-        return <FaCreditCard className="text-purple-600 mr-2" />;
+        return <FaCreditCard className="text-purple-600 text-xl" />;
       case 'mercado_pago':
-        return <FaWallet className="text-teal-600 mr-2" />;
+        return <FaWallet className="text-teal-600 text-xl" />;
       default:
-        return <FaMoneyBillWave className="mr-2" />;
+        return <FaMoneyBillWave className="text-xl" />;
     }
   };
 
@@ -50,115 +58,108 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
   };
 
   return (  
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex justify-between items-center border-b p-5">
-          <h2 className="text-xl font-bold text-gray-800">Confirmar Venta</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+        {/* Header */}
+        <div className="flex justify-between items-center border-b border-gray-200 p-6 bg-gradient-to-r from-blue-50 to-gray-50">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Confirmar Venta</h2>
+            <p className="text-sm text-gray-600 mt-1">Complete los detalles del pago</p>
+          </div>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-            disabled={isSubmitting}
+            className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            disabled={isSubmitting || isSuccess}
           >
             <FaTimes />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-5 space-y-6">
-          <div className="bg-blue-50 p-4 rounded-xl">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-gray-600">Total a pagar</p>
-                <p className="text-2xl font-bold text-blue-800">${total.toFixed(2)}</p>
+        {isSuccess ? (
+          <div className="p-8 text-center">
+            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FaCheckCircle className="text-green-600 text-3xl" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">¡Venta Exitosa!</h3>
+            <p className="text-gray-600">La transacción se ha completado correctamente</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Total */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-5 rounded-2xl text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-blue-100 text-sm">Total a pagar</p>
+                  <p className="text-3xl font-bold">${total.toFixed(2)}</p>
+                </div>
+                <div className="text-blue-100 text-right">
+                  <p className="text-sm">Medio de pago</p>
+                  <p className="font-medium">{getNombreMedioPago()}</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Forma de pago</label>
-            <div className="grid grid-cols-2 gap-3">
+            
+            {/* Selección de medio de pago */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-4">Seleccione forma de pago</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'efectivo', label: 'Efectivo', icon: FaMoneyBillWave, color: 'green' },
+                  { value: 'debito', label: 'Débito', icon: FaCreditCard, color: 'blue' },
+                  { value: 'credito', label: 'Crédito', icon: FaCreditCard, color: 'purple' },
+                  { value: 'mercado_pago', label: 'Mercado Pago', icon: FaWallet, color: 'teal' }
+                ].map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setMedioPago(option.value)}
+                      className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                        medioPago === option.value 
+                          ? `border-${option.color}-500 bg-${option.color}-50 shadow-md` 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className={`text-${option.color}-600 text-xl mb-2`} />
+                      <span className="font-medium text-sm">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div className="flex gap-3 pt-4">
               <button
                 type="button"
-                onClick={() => setMedioPago('efectivo')}
-                className={`flex items-center justify-center p-3 rounded-xl border ${
-                  medioPago === 'efectivo' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
+                onClick={onClose}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                disabled={isSubmitting}
               >
-                <FaMoneyBillWave className="text-green-600 mr-2" />
-                <span>Efectivo</span>
+                Cancelar
               </button>
-              
               <button
-                type="button"
-                onClick={() => setMedioPago('debito')}
-                className={`flex items-center justify-center p-3 rounded-xl border ${
-                  medioPago === 'debito' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:bg-gray-50'
+                type="submit"
+                className={`flex-1 px-6 py-3 text-white rounded-xl flex items-center justify-center gap-2 font-medium transition-all ${
+                  isSubmitting 
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
                 }`}
+                disabled={isSubmitting}
               >
-                <FaCreditCard className="text-blue-600 mr-2" />
-                <span>Débito</span>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setMedioPago('credito')}
-                className={`flex items-center justify-center p-3 rounded-xl border ${
-                  medioPago === 'credito' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <FaCreditCard className="text-purple-600 mr-2" />
-                <span>Crédito</span>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setMedioPago('mercado_pago')}
-                className={`flex items-center justify-center p-3 rounded-xl border ${
-                  medioPago === 'mercado_pago' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <FaWallet className="text-teal-600 mr-2" />
-                <span>Mercado Pago</span>
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                    Procesando...
+                  </>
+                ) : (
+                  'Confirmar Venta'
+                )}
               </button>
             </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={`px-5 py-2.5 text-white rounded-lg flex items-center gap-2 transition ${
-                isSubmitting 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900'
-              }`}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                  Procesando...
-                </>
-              ) : (
-                'Confirmar Venta'
-              )}
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );

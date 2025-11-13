@@ -16,10 +16,7 @@ import {
   FaRocket
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-
-// 1. Crear archivo CSS para las animaciones
-import '../DashboardAnimations.css';
+import {  AnimatePresence } from "framer-motion";
 
 function obtenerFechaLocalISO(date = new Date()) {
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -39,7 +36,7 @@ const CreationAnimation = ({ message, planetColor = "blue" }) => (
     <div className="absolute inset-0">
       {[...Array(200)].map((_, i) => (
         <div
-          key={`star-${i}`} // 2. Key única para cada estrella
+          key={`star-${i}`}
           className="absolute rounded-full bg-white"
           style={{
             width: `${Math.random() * 3}px`,
@@ -53,7 +50,7 @@ const CreationAnimation = ({ message, planetColor = "blue" }) => (
       ))}
     </div>
     
-    {/* Planeta - Solucionado problema de clases dinámicas */}
+    {/* Planeta */}
     <motion.div
       className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
       initial={{ scale: 0.5, opacity: 0 }}
@@ -212,12 +209,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex min-h-screen h-screen relative overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen h-screen bg-gray-50 relative">
       {/* Animación de lanzamiento inicial */}
       <AnimatePresence>
         {showLaunchAnimation && (
           <motion.div 
-            key="launch-screen" // 3. Key única para animación
+            key="launch-screen"
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -227,7 +224,7 @@ export default function Dashboard() {
             <div className="absolute inset-0">
               {[...Array(200)].map((_, i) => (
                 <div
-                  key={`launch-star-${i}`} // 4. Key única para cada estrella
+                  key={`launch-star-${i}`}
                   className="absolute rounded-full bg-white"
                   style={{
                     width: `${Math.random() * 3}px`,
@@ -302,7 +299,7 @@ export default function Dashboard() {
       <AnimatePresence>
         {isCreatingBox && (
           <CreationAnimation 
-            key="box-creation" // 5. Key única para animación
+            key="box-creation"
             message={creationMessage} 
             planetColor="green"
           />
@@ -386,40 +383,44 @@ export default function Dashboard() {
       
       {/* CONTENIDO PRINCIPAL */}
       {!privado && !showLaunchAnimation && !isCreatingBox && (
-        <>
+        <div className="flex flex-1">
           <Sidebar selected={pagina} onSelect={setPagina} />
           
-          {/* Cabecera para móviles */}
-          <div className="md:hidden fixed top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 z-30 shadow-md">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold">
-                {pagina === "cajaventa" && "Caja Venta"}
-                {pagina === "productos" && "Productos"}
-                {pagina === "analisis" && "Análisis"}
-                {pagina === "cajasdiarias" && "Cajas Diarias"}
-                {pagina === "configuracion" && "Configuración"}
-                {pagina === "VentasDetalle" && "Ventas Detalle"}
-                {pagina === "Servicios" && "Servicios"}
-              </h1>
-              {pagina === "cajaventa" && (
-                <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
-                  <FaMoneyBillWave />
-                  <span>${cajaData.length > 0 ? cajaData[0].totalInicial.toFixed(2) : '0.00'}</span>
-                </div>
-              )}
+          {/* Contenido principal */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Cabecera para móviles */}
+            <div className="md:hidden bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 shadow-md">
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold">
+                  {pagina === "cajaventa" && "Caja Venta"}
+                  {pagina === "productos" && "Productos"}
+                  {pagina === "analisis" && "Análisis"}
+                  {pagina === "cajasdiarias" && "Cajas Diarias"}
+                  {pagina === "configuracion" && "Configuración"}
+                  {pagina === "VentasDetalle" && "Ventas Detalle"}
+                  {pagina === "Servicios" && "Servicios"}
+                </h1>
+                {pagina === "cajaventa" && (
+                  <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                    <FaMoneyBillWave />
+                    <span>${cajaData.length > 0 ? cajaData[0].totalInicial.toFixed(2) : '0.00'}</span>
+                  </div>
+                )}
+              </div>
             </div>
+            
+            {/* Contenido de la página */}
+            <main className={`flex-1 overflow-auto ${pagina === "cajaventa" ? "h-full" : "p-4 md:p-6"}`}>
+              {pagina === "cajaventa" && <CajaView id={cajaId} />}
+              {pagina === "productos" && <ListaProductos />}
+              {pagina === "analisis" && <VistaIngresosGastos id={cajaId} />}
+              {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
+              {pagina === "configuracion" && <ConfiguracionCuenta />}
+              {pagina === "VentasDetalle" && <VentasDetalle />}
+              {pagina === "Servicios" && <Servicios cajaId={cajaId} />}
+            </main>
           </div>
-          
-          <main className={`flex-1 overflow-y-auto pt-16 md:pt-0 ${pagina === "cajaventa" ? "h-[calc(100vh-4rem)] md:h-full" : "p-4"}`}>
-            {pagina === "cajaventa" && <CajaView id={cajaId} />}
-            {pagina === "productos" && <ListaProductos />}
-            {pagina === "analisis" && <VistaIngresosGastos id={cajaId} />}
-            {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
-            {pagina === "configuracion" && <ConfiguracionCuenta />}
-            {pagina === "VentasDetalle" && <VentasDetalle />}
-            {pagina === "Servicios" && <Servicios cajaId={cajaId} />}
-          </main>
-        </>
+        </div>
       )}
     </div>
   );
