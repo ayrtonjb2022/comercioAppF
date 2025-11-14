@@ -16,7 +16,7 @@ import {
   FaRocket
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import {  AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 function obtenerFechaLocalISO(date = new Date()) {
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
