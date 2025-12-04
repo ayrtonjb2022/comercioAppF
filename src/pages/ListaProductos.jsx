@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { 
   FaEdit, 
-  FaTrash, 
   FaPlus, 
   FaSearch, 
   FaBox, 
   FaChartLine, 
   FaTags, 
   FaInfoCircle,
-  FaTimes, // Importación añadida para solucionar el error
-  FaSave // Importación añadida para el botón de guardar
+  FaTimes,
+  FaSave,
+  FaPowerOff,
+  FaCheck,
+  FaEye,
+  FaEyeSlash
 } from "react-icons/fa";
 import {
   getProductosall,
@@ -17,6 +20,7 @@ import {
   putProductos,
   deleteProductos,
 } from "../api/webApi";
+import ProductoCard from "../components/ProductoCard";
 
 export default function VistaProductos() {
   const [filtro, setFiltro] = useState("");
@@ -26,6 +30,7 @@ export default function VistaProductos() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState([]);
+  const [vistaActivos, setVistaActivos] = useState(true); // Nueva variable de estado
 
   useEffect(() => {
     const getProductos = async () => {
@@ -62,7 +67,13 @@ export default function VistaProductos() {
     getProductos();
   }, []);
 
-  const productosFiltrados = productos.filter((p) =>
+  // Filtrar productos según la vista activa/inactiva
+  const productosFiltradosPorEstado = productos.filter(p => 
+    vistaActivos ? p.activo : !p.activo
+  );
+
+  // Aplicar filtro de búsqueda
+  const productosFiltrados = productosFiltradosPorEstado.filter((p) =>
     `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
   );
 
@@ -98,10 +109,25 @@ export default function VistaProductos() {
     setMostrarModal(true);
   };
 
-  const handleEliminar = async (id) => {
-    if (confirm("¿Eliminar producto?")) {
-      setProductos((prev) => prev.filter((p) => p.id !== id));
-      await deleteProductos(id);
+  const handleDesactivar = async (id) => {
+    if (confirm("¿Desactivar producto? Podrás volver a activarlo más tarde.")) {
+      const producto = productos.find(p => p.id === id);
+      if (producto) {
+        const productoActualizado = { ...producto, activo: false };
+        setProductos(prev => prev.map(p => p.id === id ? productoActualizado : p));
+        await putProductos(productoActualizado);
+      }
+    }
+  };
+
+  const handleActivar = async (id) => {
+    if (confirm("¿Activar producto?")) {
+      const producto = productos.find(p => p.id === id);
+      if (producto) {
+        const productoActualizado = { ...producto, activo: true };
+        setProductos(prev => prev.map(p => p.id === id ? productoActualizado : p));
+        await putProductos(productoActualizado);
+      }
     }
   };
 
@@ -131,12 +157,16 @@ export default function VistaProductos() {
     }));
   };
 
-  // Calcular estadísticas
-  const totalProductos = productos.length;
-  const productosActivos = productos.filter(p => p.activo).length;
-  const stockTotal = productos.reduce((acc, p) => acc + parseInt(p.cantidad), 0);
-  const valorInventario = productos.reduce((acc, p) => 
+  // Calcular estadísticas SOLO de productos activos
+  const productosActivos = productos.filter(p => p.activo);
+  const totalProductosActivos = productosActivos.length;
+  const stockTotalActivos = productosActivos.reduce((acc, p) => acc + parseInt(p.cantidad), 0);
+  const valorInventarioActivos = productosActivos.reduce((acc, p) => 
     acc + (parseInt(p.cantidad) * parseFloat(p.precioCompra)), 0);
+
+  // Productos inactivos
+  const productosInactivos = productos.filter(p => !p.activo);
+  const totalProductosInactivos = productosInactivos.length;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 relative">
@@ -163,24 +193,24 @@ export default function VistaProductos() {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-8">
           <div className="bg-white rounded-xl shadow p-5 flex items-start">
             <div className="bg-blue-100 p-3 rounded-lg mr-4">
               <FaBox className="text-blue-600 text-xl" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Productos totales</h3>
-              <p className="text-2xl font-bold text-gray-800">{totalProductos}</p>
+              <h3 className="text-sm font-medium text-gray-500">Productos activos</h3>
+              <p className="text-2xl font-bold text-gray-800">{totalProductosActivos}</p>
             </div>
           </div>
           
           <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-green-100 p-3 rounded-lg mr-4">
-              <FaChartLine className="text-green-600 text-xl" />
+            <div className="bg-yellow-100 p-3 rounded-lg mr-4">
+              <FaPowerOff className="text-yellow-600 text-xl" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Productos activos</h3>
-              <p className="text-2xl font-bold text-gray-800">{productosActivos}</p>
+              <h3 className="text-sm font-medium text-gray-500">Productos inactivos</h3>
+              <p className="text-2xl font-bold text-gray-800">{totalProductosInactivos}</p>
             </div>
           </div>
           
@@ -189,8 +219,8 @@ export default function VistaProductos() {
               <FaTags className="text-purple-600 text-xl" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Stock total</h3>
-              <p className="text-2xl font-bold text-gray-800">{stockTotal}</p>
+              <h3 className="text-sm font-medium text-gray-500">Stock activos</h3>
+              <p className="text-2xl font-bold text-gray-800">{stockTotalActivos}</p>
             </div>
           </div>
           
@@ -199,31 +229,81 @@ export default function VistaProductos() {
               <FaInfoCircle className="text-amber-600 text-xl" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Valor inventario</h3>
-              <p className="text-2xl font-bold text-gray-800">${valorInventario.toFixed(2)}</p>
+              <h3 className="text-sm font-medium text-gray-500">Valor inventario activo</h3>
+              <p className="text-2xl font-bold text-gray-800">${valorInventarioActivos.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-5 flex items-start">
+            <div className="bg-green-100 p-3 rounded-lg mr-4">
+              <FaChartLine className="text-green-600 text-xl" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Total productos</h3>
+              <p className="text-2xl font-bold text-gray-800">{productos.length}</p>
             </div>
           </div>
         </div>
 
-        {/* Controles */}
+        {/* Controles y selector de vista */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-xl shadow">
-          <div className="relative flex-1">
-            <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar productos por nombre o categoría..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex gap-4">
+            <button
+              onClick={() => setVistaActivos(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                vistaActivos 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <FaEye /> Productos Activos
+            </button>
+            <button
+              onClick={() => setVistaActivos(false)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                !vistaActivos 
+                  ? 'bg-yellow-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <FaEyeSlash /> Productos Inactivos
+            </button>
           </div>
-          <button
-            onClick={abrirNuevo}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
-          >
-            <FaPlus />
-            Nuevo Producto
-          </button>
+
+          <div className="flex flex-col md:flex-row gap-4 md:items-center">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder={`Buscar productos ${vistaActivos ? 'activos' : 'inactivos'}...`}
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={abrirNuevo}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
+            >
+              <FaPlus />
+              Nuevo Producto
+            </button>
+          </div>
+        </div>
+
+        {/* Mensaje de vista */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-700">
+            {vistaActivos ? '📋 Productos Activos' : '📋 Productos Inactivos'}
+            <span className="text-sm font-normal text-gray-500 ml-2">
+              ({productosFiltrados.length} productos)
+            </span>
+          </h2>
+          <p className="text-sm text-gray-500">
+            {vistaActivos 
+              ? 'Productos disponibles para venta y contabilización'
+              : 'Productos desactivados - puedes reactivarlos cuando lo necesites'}
+          </p>
         </div>
 
         {/* Lista de productos */}
@@ -233,87 +313,31 @@ export default function VistaProductos() {
               <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <FaBox className="text-gray-500 text-2xl" />
               </div>
-              <h3 className="text-lg font-medium text-gray-700">No se encontraron productos</h3>
-              <p className="text-gray-500 mt-1">Intenta con otro término de búsqueda o crea un nuevo producto.</p>
+              <h3 className="text-lg font-medium text-gray-700">
+                No se encontraron productos {vistaActivos ? 'activos' : 'inactivos'}
+              </h3>
+              <p className="text-gray-500 mt-1">
+                {vistaActivos
+                  ? 'Intenta con otro término de búsqueda o crea un nuevo producto.'
+                  : 'No hay productos desactivados en este momento.'}
+              </p>
             </div>
           ) : (
             productosFiltrados.map((p) => (
-              <div
+              <ProductoCard
                 key={p.id}
-                className={`bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg ${
-                  !p.activo ? "opacity-70" : ""
-                }`}
-              >
-                <div className="p-5">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                        {p.nombre}
-                        {!p.activo && (
-                          <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
-                            Inactivo
-                          </span>
-                        )}
-                      </h3>
-                      {p.categoria && (
-                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-1">
-                          {p.categoria}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => abrirEditar(p)}
-                        className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"
-                        title="Editar"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(p.id)}
-                        className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50"
-                        title="Eliminar"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <p className="text-gray-600 text-sm mt-3 min-h-[40px]">
-                    {p.descripcion || "Sin descripción..."}
-                  </p>
-                  
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Stock</p>
-                      <p className={`text-lg font-medium ${p.cantidad <= 5 ? "text-red-600" : "text-green-600"}`}>
-                        {p.cantidad} unidades
-                      </p>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Precio</p>
-                      <p className="text-lg font-medium text-gray-800">${parseFloat(p.precioVenta).toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Costo</p>
-                      <p className="text-lg font-medium text-gray-800">${parseFloat(p.precioCompra).toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Ganancia</p>
-                      <p className="text-lg font-medium text-green-600">{p.porcentajeGanancia}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                producto={p}
+                onEditar={() => abrirEditar(p)}
+                onDesactivar={() => handleDesactivar(p.id)}
+                onActivar={() => handleActivar(p.id)}
+                showActivateButton={!vistaActivos}
+              />
             ))
           )}
         </div>
       </div>
 
-      {/* Modal para crear/editar producto */}
+      {/* Modal para crear/editar producto (se mantiene igual) */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
