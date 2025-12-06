@@ -4,7 +4,6 @@ import {
   FaPlus, 
   FaSearch, 
   FaBox, 
-  FaChartLine, 
   FaTags, 
   FaInfoCircle,
   FaTimes,
@@ -12,7 +11,12 @@ import {
   FaPowerOff,
   FaCheck,
   FaEye,
-  FaEyeSlash
+  FaEyeSlash,
+  FaExclamationTriangle,
+  FaShoppingCart,
+  FaTrash,
+  FaDollarSign,
+  FaFilter
 } from "react-icons/fa";
 import {
   getProductosall,
@@ -30,10 +34,11 @@ export default function VistaProductos() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState([]);
-  const [vistaActivos, setVistaActivos] = useState(true); // Nueva variable de estado
+  const [vistaActivos, setVistaActivos] = useState(true);
+  const [pedido, setPedido] = useState([]);
 
   useEffect(() => {
-    const getProductos = async () => {
+    const cargarProductos = async () => {
       setCargando(true);
       try {
         const response = await getProductosall();
@@ -50,31 +55,34 @@ export default function VistaProductos() {
           (p) => p?.id && p?.nombre
         );
 
-        // Extraer categorías únicas
         const catUnicas = [...new Set(productosValidos.map(p => p.categoria).filter(cat => cat))];
         setCategorias(catUnicas);
-        
         setProductos(productosValidos);
       } catch (err) {
         console.error("Error al cargar productos:", err);
         setError("Error al cargar productos.");
-        setTimeout(() => setError(""), 30000);
+        setTimeout(() => setError(""), 5000);
       } finally {
         setCargando(false);
       }
     };
 
-    getProductos();
+    cargarProductos();
   }, []);
 
-  // Filtrar productos según la vista activa/inactiva
+  // Productos según estado activo/inactivo
   const productosFiltradosPorEstado = productos.filter(p => 
     vistaActivos ? p.activo : !p.activo
   );
 
   // Aplicar filtro de búsqueda
   const productosFiltrados = productosFiltradosPorEstado.filter((p) =>
-    `${p.nombre} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
+    `${p.nombre} ${p.categoria} ${p.descripcion}`.toLowerCase().includes(filtro.toLowerCase())
+  );
+
+  // Productos con bajo stock
+  const productosBajoStock = productos.filter(p => 
+    p.activo && parseInt(p.cantidad) < 6
   );
 
   const [form, setForm] = useState({
@@ -87,6 +95,56 @@ export default function VistaProductos() {
     categoria: "",
     activo: true,
   });
+
+  // Funciones de pedido
+  const agregarAlPedido = (producto) => {
+    const productoExistente = pedido.find(item => item.id === producto.id);
+    
+    if (productoExistente) {
+      setPedido(pedido.map(item => 
+        item.id === producto.id 
+          ? { ...item, cantidadPedido: item.cantidadPedido + 1 }
+          : item
+      ));
+    } else {
+      setPedido([...pedido, {
+        ...producto,
+        cantidadPedido: 1,
+        costoTotal: parseFloat(producto.precioCompra)
+      }]);
+    }
+  };
+
+  const actualizarCantidadPedido = (id, nuevaCantidad) => {
+    if (nuevaCantidad < 1) {
+      eliminarDelPedido(id);
+      return;
+    }
+    
+    setPedido(pedido.map(item => {
+      if (item.id === id) {
+        const costoUnitario = parseFloat(item.precioCompra);
+        return {
+          ...item,
+          cantidadPedido: nuevaCantidad,
+          costoTotal: costoUnitario * nuevaCantidad
+        };
+      }
+      return item;
+    }));
+  };
+
+  const eliminarDelPedido = (id) => {
+    setPedido(pedido.filter(item => item.id !== id));
+  };
+
+  const calcularTotalPedido = () => {
+    return pedido.reduce((total, item) => total + (parseFloat(item.precioCompra) * item.cantidadPedido), 0);
+  };
+
+  const limpiarPedido = () => {
+    setPedido([]);
+  };
 
   const abrirNuevo = () => {
     setForm({
@@ -110,7 +168,7 @@ export default function VistaProductos() {
   };
 
   const handleDesactivar = async (id) => {
-    if (confirm("¿Desactivar producto? Podrás volver a activarlo más tarde.")) {
+    if (window.confirm("¿Desactivar producto? Podrás reactivarlo después.")) {
       const producto = productos.find(p => p.id === id);
       if (producto) {
         const productoActualizado = { ...producto, activo: false };
@@ -121,7 +179,7 @@ export default function VistaProductos() {
   };
 
   const handleActivar = async (id) => {
-    if (confirm("¿Activar producto?")) {
+    if (window.confirm("¿Activar producto?")) {
       const producto = productos.find(p => p.id === id);
       if (producto) {
         const productoActualizado = { ...producto, activo: true };
@@ -133,228 +191,409 @@ export default function VistaProductos() {
 
   const handleGuardar = async (e) => {
     e.preventDefault();
-    if (productoEditar) {
-      setProductos((prev) =>
-        prev.map((p) => (p.id === productoEditar.id ? form : p))
-      );
-      await putProductos(form);
-    } else {
-      const newProduct = {
-        ...form,
-        id: productos.length ? Math.max(...productos.map(p => p.id)) + 1 : 1
-      };
-      setProductos((prev) => [...prev, newProduct]);
-      await postProductos(newProduct);
+    try {
+      if (productoEditar) {
+        await putProductos(form);
+        setProductos(prev => prev.map(p => p.id === productoEditar.id ? form : p));
+      } else {
+        const newProduct = {
+          ...form,
+          id: productos.length ? Math.max(...productos.map(p => p.id)) + 1 : 1
+        };
+        await postProductos(newProduct);
+        setProductos(prev => [...prev, newProduct]);
+      }
+      setMostrarModal(false);
+    } catch (error) {
+      setError("Error al guardar el producto");
+      setTimeout(() => setError(""), 5000);
     }
-    setMostrarModal(false);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  // Calcular estadísticas SOLO de productos activos
+  // Estadísticas
   const productosActivos = productos.filter(p => p.activo);
   const totalProductosActivos = productosActivos.length;
   const stockTotalActivos = productosActivos.reduce((acc, p) => acc + parseInt(p.cantidad), 0);
   const valorInventarioActivos = productosActivos.reduce((acc, p) => 
     acc + (parseInt(p.cantidad) * parseFloat(p.precioCompra)), 0);
-
-  // Productos inactivos
-  const productosInactivos = productos.filter(p => !p.activo);
-  const totalProductosInactivos = productosInactivos.length;
+  const totalProductosInactivos = productos.filter(p => !p.activo).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 relative">
-      {/* ERROR */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
+      {/* Notificaciones */}
       {error && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-50">
-          {error}
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in z-50">
+          <div className="flex items-center gap-2">
+            <FaExclamationTriangle />
+            {error}
+          </div>
         </div>
       )}
 
-      {/* CARGANDO */}
       {cargando && (
-        <div className="fixed inset-0 bg-white bg-opacity-70 z-40 flex items-center justify-center pointer-events-auto">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-40 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <p className="mt-4 text-gray-600">Cargando productos...</p>
+          </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <FaBox className="text-blue-500" /> Gestión de Productos
-          </h1>
-          <p className="text-gray-600 mt-2">Administra tu inventario de productos y stock</p>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FaBox className="text-blue-600" />
+              </div>
+              Gestión de Productos
+            </h1>
+            <p className="text-gray-600 mt-2">Administra tu inventario y stock</p>
+          </div>
+          
+          <button
+            onClick={abrirNuevo}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl"
+          >
+            <FaPlus />
+            Nuevo Producto
+          </button>
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-8">
-          <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-blue-100 p-3 rounded-lg mr-4">
-              <FaBox className="text-blue-600 text-xl" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Productos activos</h3>
-              <p className="text-2xl font-bold text-gray-800">{totalProductosActivos}</p>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-yellow-100 p-3 rounded-lg mr-4">
-              <FaPowerOff className="text-yellow-600 text-xl" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Productos inactivos</h3>
-              <p className="text-2xl font-bold text-gray-800">{totalProductosInactivos}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Activos</p>
+                <p className="text-2xl font-bold text-gray-900">{totalProductosActivos}</p>
+              </div>
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FaBox className="text-blue-600" />
+              </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-purple-100 p-3 rounded-lg mr-4">
-              <FaTags className="text-purple-600 text-xl" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Stock activos</h3>
-              <p className="text-2xl font-bold text-gray-800">{stockTotalActivos}</p>
+          <div className="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Inactivos</p>
+                <p className="text-2xl font-bold text-gray-900">{totalProductosInactivos}</p>
+              </div>
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <FaPowerOff className="text-yellow-600" />
+              </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-amber-100 p-3 rounded-lg mr-4">
-              <FaInfoCircle className="text-amber-600 text-xl" />
+          <div className="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Stock total</p>
+                <p className="text-2xl font-bold text-gray-900">{stockTotalActivos}</p>
+              </div>
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <FaTags className="text-purple-600" />
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Valor inventario activo</h3>
-              <p className="text-2xl font-bold text-gray-800">${valorInventarioActivos.toFixed(2)}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Valor inventario</p>
+                <p className="text-2xl font-bold text-gray-900">${valorInventarioActivos.toFixed(2)}</p>
+              </div>
+              <div className="p-2 bg-green-100 rounded-lg">
+                <FaDollarSign className="text-green-600" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow p-5 flex items-start">
-            <div className="bg-green-100 p-3 rounded-lg mr-4">
-              <FaChartLine className="text-green-600 text-xl" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-500">Total productos</h3>
-              <p className="text-2xl font-bold text-gray-800">{productos.length}</p>
+          <div className="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Bajo stock</p>
+                <p className="text-2xl font-bold text-gray-900">{productosBajoStock.length}</p>
+              </div>
+              <div className="p-2 bg-red-100 rounded-lg">
+                <FaExclamationTriangle className="text-red-600" />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Controles y selector de vista */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-xl shadow">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setVistaActivos(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                vistaActivos 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <FaEye /> Productos Activos
-            </button>
-            <button
-              onClick={() => setVistaActivos(false)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                !vistaActivos 
-                  ? 'bg-yellow-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <FaEyeSlash /> Productos Inactivos
-            </button>
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 md:items-center">
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder={`Buscar productos ${vistaActivos ? 'activos' : 'inactivos'}...`}
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        {/* Panel de bajo stock */}
+        {productosBajoStock.length > 0 && (
+          <div className="mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <FaExclamationTriangle className="text-red-600 text-xl" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Productos con bajo stock</h2>
+                  <p className="text-sm text-gray-600">{productosBajoStock.length} productos necesitan reposición</p>
+                </div>
+              </div>
+              <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold">
+                &lt; 6 unidades
+              </span>
             </div>
-            <button
-              onClick={abrirNuevo}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
-            >
-              <FaPlus />
-              Nuevo Producto
-            </button>
+            
+            <div className="overflow-x-auto">
+              <div className="flex gap-4 pb-4 min-w-max">
+                {productosBajoStock.slice(0, 4).map((producto) => (
+                  <div key={producto.id} className="bg-white rounded-xl shadow p-4 min-w-[280px]">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{producto.nombre}</h3>
+                        <p className="text-sm text-gray-500 mt-1">{producto.categoria || 'Sin categoría'}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        producto.cantidad < 3 ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
+                      }`}>
+                        {producto.cantidad} unidades
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <p className="text-gray-600">Costo: <span className="font-semibold">${parseFloat(producto.precioCompra).toFixed(2)}</span></p>
+                        <p className="text-gray-600">Valor: <span className="font-semibold">${(parseFloat(producto.precioCompra) * parseInt(producto.cantidad)).toFixed(2)}</span></p>
+                      </div>
+                      <button
+                        onClick={() => agregarAlPedido(producto)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-all"
+                      >
+                        <FaShoppingCart />
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Mensaje de vista */}
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-700">
-            {vistaActivos ? '📋 Productos Activos' : '📋 Productos Inactivos'}
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              ({productosFiltrados.length} productos)
-            </span>
-          </h2>
-          <p className="text-sm text-gray-500">
-            {vistaActivos 
-              ? 'Productos disponibles para venta y contabilización'
-              : 'Productos desactivados - puedes reactivarlos cuando lo necesites'}
-          </p>
+        {/* Panel de pedido */}
+        {pedido.length > 0 && (
+          <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaShoppingCart className="text-blue-600 text-xl" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Pedido actual</h2>
+                  <p className="text-sm text-gray-600">{pedido.length} productos en el carrito</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-2xl font-bold text-blue-700">
+                  ${calcularTotalPedido().toFixed(2)}
+                </span>
+                <button
+                  onClick={limpiarPedido}
+                  className="px-4 py-2 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pedido.map((item) => (
+                <div key={item.id} className="bg-white rounded-xl shadow p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 truncate">{item.nombre}</h3>
+                      <p className="text-sm text-gray-500">${parseFloat(item.precioCompra).toFixed(2)} c/u</p>
+                    </div>
+                    <button
+                      onClick={() => eliminarDelPedido(item.id)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => actualizarCantidadPedido(item.id, item.cantidadPedido - 1)}
+                        className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center font-semibold">{item.cantidadPedido}</span>
+                      <button
+                        onClick={() => actualizarCantidadPedido(item.id, item.cantidadPedido + 1)}
+                        className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="font-bold text-blue-600">
+                      ${(parseFloat(item.precioCompra) * item.cantidadPedido).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-6 pt-6 border-t border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-semibold text-gray-900">Total del pedido:</span>
+                <span className="text-2xl font-bold text-blue-700">${calcularTotalPedido().toFixed(2)}</span>
+              </div>
+              <button
+                onClick={() => {
+                  alert(`Pedido confirmado por $${calcularTotalPedido().toFixed(2)}`);
+                  limpiarPedido();
+                }}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold"
+              >
+                Confirmar pedido
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Filtros y búsqueda */}
+        <div className="bg-white rounded-2xl shadow p-6 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setVistaActivos(true)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  vistaActivos 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <FaEye /> Activos
+              </button>
+              <button
+                onClick={() => setVistaActivos(false)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  !vistaActivos 
+                    ? 'bg-gradient-to-r from-yellow-600 to-yellow-700 text-white shadow' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <FaEyeSlash /> Inactivos
+              </button>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={`Buscar ${vistaActivos ? 'activos' : 'inactivos'}...`}
+                  value={filtro}
+                  onChange={(e) => setFiltro(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              Mostrando {productosFiltrados.length} de {productosFiltradosPorEstado.length} productos
+            </div>
+          </div>
         </div>
 
         {/* Lista de productos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              {vistaActivos ? '📦 Productos activos' : '📦 Productos inactivos'}
+            </h2>
+            {filtro && (
+              <button
+                onClick={() => setFiltro("")}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Limpiar búsqueda
+              </button>
+            )}
+          </div>
+          
           {productosFiltrados.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <FaBox className="text-gray-500 text-2xl" />
+            <div className="bg-white rounded-2xl shadow p-12 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <FaBox className="text-gray-400 text-3xl" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                  No hay productos {vistaActivos ? 'activos' : 'inactivos'}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {filtro 
+                    ? 'No se encontraron productos con ese término de búsqueda'
+                    : vistaActivos
+                      ? 'Crea tu primer producto para comenzar'
+                      : 'Todos los productos están activos'
+                  }
+                </p>
+                {!filtro && vistaActivos && (
+                  <button
+                    onClick={abrirNuevo}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Crear primer producto
+                  </button>
+                )}
               </div>
-              <h3 className="text-lg font-medium text-gray-700">
-                No se encontraron productos {vistaActivos ? 'activos' : 'inactivos'}
-              </h3>
-              <p className="text-gray-500 mt-1">
-                {vistaActivos
-                  ? 'Intenta con otro término de búsqueda o crea un nuevo producto.'
-                  : 'No hay productos desactivados en este momento.'}
-              </p>
             </div>
           ) : (
-            productosFiltrados.map((p) => (
-              <ProductoCard
-                key={p.id}
-                producto={p}
-                onEditar={() => abrirEditar(p)}
-                onDesactivar={() => handleDesactivar(p.id)}
-                onActivar={() => handleActivar(p.id)}
-                showActivateButton={!vistaActivos}
-              />
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {productosFiltrados.map((p) => (
+                <ProductoCard
+                  key={p.id}
+                  producto={p}
+                  onEditar={() => abrirEditar(p)}
+                  onDesactivar={() => handleDesactivar(p.id)}
+                  onActivar={() => handleActivar(p.id)}
+                  showActivateButton={!vistaActivos}
+                  onAgregarPedido={vistaActivos ? () => agregarAlPedido(p) : null}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Modal para crear/editar producto (se mantiene igual) */}
+      {/* Modal */}
       {mostrarModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
-            <div className="flex justify-between items-center border-b p-5">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FaBox className="text-blue-500" />
-                {productoEditar ? "Editar Producto" : "Nuevo Producto"}
-              </h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaBox className="text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {productoEditar ? "Editar producto" : "Nuevo producto"}
+                </h2>
+              </div>
               <button 
                 onClick={() => setMostrarModal(false)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
               >
-                <FaTimes className="text-xl" />
+                <FaTimes className="text-gray-500 text-xl" />
               </button>
             </div>
             
-            <form onSubmit={handleGuardar} className="p-5 space-y-6">
+            <form onSubmit={handleGuardar} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -364,9 +603,9 @@ export default function VistaProductos() {
                     name="nombre"
                     value={form.nombre}
                     onChange={handleChange}
-                    placeholder="Ej: Café Premium"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ej: Café Premium"
                   />
                 </div>
                 
@@ -374,24 +613,17 @@ export default function VistaProductos() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Categoría
                   </label>
-                  <div className="relative">
-                    <select
-                      name="categoria"
-                      value={form.categoria}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {categorias.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </div>
-                  </div>
+                  <select
+                    name="categoria"
+                    value={form.categoria}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Seleccionar categoría</option>
+                    {categorias.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
@@ -403,16 +635,16 @@ export default function VistaProductos() {
                   name="descripcion"
                   value={form.descripcion}
                   onChange={handleChange}
-                  placeholder="Describe las características del producto..."
-                  rows="3"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="2"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Describe el producto..."
                 />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stock inicial
+                    Stock
                   </label>
                   <input
                     name="cantidad"
@@ -420,14 +652,13 @@ export default function VistaProductos() {
                     min="0"
                     value={form.cantidad}
                     onChange={handleChange}
-                    placeholder="0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Precio de compra ($)
+                    Precio compra
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-3.5 text-gray-500">$</span>
@@ -438,15 +669,14 @@ export default function VistaProductos() {
                       min="0"
                       value={form.precioCompra}
                       onChange={handleChange}
-                      placeholder="0.00"
-                      className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-8 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Precio de venta ($)
+                    Precio venta
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-3.5 text-gray-500">$</span>
@@ -457,66 +687,61 @@ export default function VistaProductos() {
                       min="0"
                       value={form.precioVenta}
                       onChange={handleChange}
-                      placeholder="0.00"
-                      className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-8 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Porcentaje de ganancia (%)
-                  </label>
-                  <input
-                    name="porcentajeGanancia"
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={form.porcentajeGanancia}
-                    onChange={handleChange}
-                    placeholder="0.0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div className="flex items-end">
-                  <label className="flex items-center gap-3 h-full">
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        name="activo"
-                        checked={form.activo}
-                        onChange={handleChange}
-                        className="sr-only"
-                      />
-                      <div className={`block w-14 h-7 rounded-full ${
-                        form.activo ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}></div>
-                      <div className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform ${
-                        form.activo ? 'transform translate-x-7' : ''
-                      }`}></div>
-                    </div>
-                    <span className="text-gray-700">Producto activo</span>
-                  </label>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Porcentaje de ganancia
+                </label>
+                <input
+                  name="porcentajeGanancia"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={form.porcentajeGanancia}
+                  onChange={handleChange}
+                  placeholder="0.0"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
               
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setMostrarModal(false)}
-                  className="px-5 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-                >
-                  <FaSave /> {productoEditar ? "Guardar Cambios" : "Crear Producto"}
-                </button>
+              <div className="flex items-center justify-between pt-6 border-t">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      name="activo"
+                      checked={form.activo}
+                      onChange={handleChange}
+                      className="sr-only"
+                    />
+                    <div className={`w-12 h-6 rounded-full transition ${form.activo ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${form.activo ? 'left-7' : 'left-1'}`}></div>
+                    </div>
+                  </div>
+                  <span className="font-medium">Producto activo</span>
+                </label>
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarModal(false)}
+                    className="px-5 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2"
+                  >
+                    <FaSave />
+                    {productoEditar ? "Guardar" : "Crear"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

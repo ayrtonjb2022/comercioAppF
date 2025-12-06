@@ -33,7 +33,7 @@ const CreationAnimation = ({ message, planetColor = "blue" }) => (
     transition={{ duration: 0.5 }}
   >
     {/* Fondo estrellado */}
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 overflow-hidden">
       {[...Array(200)].map((_, i) => (
         <div
           key={`star-${i}`}
@@ -105,7 +105,7 @@ const CreationAnimation = ({ message, planetColor = "blue" }) => (
     
     {/* Mensaje */}
     <motion.div 
-      className="text-center text-white z-10"
+      className="text-center text-white z-10 px-4"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -209,7 +209,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex min-h-screen h-screen bg-gray-50 relative">
+    <div className="flex min-h-screen bg-gray-50 relative overflow-hidden">
       {/* Animación de lanzamiento inicial */}
       <AnimatePresence>
         {showLaunchAnimation && (
@@ -221,7 +221,7 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
             transition={{ duration: 1 }}
           >
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 overflow-hidden">
               {[...Array(200)].map((_, i) => (
                 <div
                   key={`launch-star-${i}`}
@@ -283,7 +283,7 @@ export default function Dashboard() {
             />
             
             <motion.div 
-              className="text-center mt-24 text-white z-10"
+              className="text-center mt-24 text-white z-10 px-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1, duration: 1 }}
@@ -317,7 +317,7 @@ export default function Dashboard() {
       {mostrarModal && !isCreatingBox && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
           <motion.div 
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden mx-4"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
@@ -383,7 +383,7 @@ export default function Dashboard() {
       
       {/* CONTENIDO PRINCIPAL */}
       {!privado && !showLaunchAnimation && !isCreatingBox && (
-        <div className="flex flex-1">
+        <div className="flex flex-1 w-full overflow-hidden">
           <Sidebar selected={pagina} onSelect={setPagina} />
           
           {/* Contenido principal */}
@@ -391,7 +391,7 @@ export default function Dashboard() {
             {/* Cabecera para móviles */}
             <div className="md:hidden bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 shadow-md">
               <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold">
+                <h1 className="text-xl font-bold truncate">
                   {pagina === "cajaventa" && "Caja Venta"}
                   {pagina === "productos" && "Productos"}
                   {pagina === "analisis" && "Análisis"}
@@ -401,27 +401,37 @@ export default function Dashboard() {
                   {pagina === "Servicios" && "Servicios"}
                 </h1>
                 {pagina === "cajaventa" && (
-                  <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                  <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full min-w-0">
                     <FaMoneyBillWave />
-                    <span>${cajaData.length > 0 ? cajaData[0].totalInicial.toFixed(2) : '0.00'}</span>
+                    <span className="truncate">${cajaData.length > 0 ? cajaData[0].totalInicial.toFixed(2) : '0.00'}</span>
                   </div>
                 )}
               </div>
             </div>
             
             {/* Contenido de la página */}
-            <main className={`flex-1 overflow-auto ${pagina === "cajaventa" ? "h-full" : "p-4 md:p-6"}`}>
-              {pagina === "cajaventa" && <CajaView id={cajaId} />}
-              {pagina === "productos" && <ListaProductos />}
-              {pagina === "analisis" && <VistaIngresosGastos id={cajaId} />}
-              {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
-              {pagina === "configuracion" && <ConfiguracionCuenta />}
-              {pagina === "VentasDetalle" && <VentasDetalle />}
-              {pagina === "Servicios" && <Servicios cajaId={cajaId} />}
+            <main className={`flex-1 overflow-hidden ${pagina === "cajaventa" ? "h-full" : "p-4 md:p-6"}`}>
+              <div className={`w-full h-full ${pagina !== "cajaventa" ? "overflow-y-auto" : ""}`}>
+                {pagina === "cajaventa" && <CajaView id={cajaId} />}
+                {pagina === "productos" && <ListaProductos />}
+                {pagina === "analisis" && <VistaIngresosGastos id={cajaId} />}
+                {pagina === "cajasdiarias" && <VistaCajas data={cajaData} />}
+                {pagina === "configuracion" && <ConfiguracionCuenta />}
+                {pagina === "VentasDetalle" && <VentasDetalle />}
+                {pagina === "Servicios" && <Servicios cajaId={cajaId} />}
+              </div>
             </main>
           </div>
         </div>
       )}
+
+      {/* Estilos CSS para las animaciones */}
+      <style jsx>{`
+        @keyframes twinkle {
+          0% { opacity: 0.2; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
