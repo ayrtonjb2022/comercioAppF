@@ -219,6 +219,8 @@ export const getProductosall = async () => {
                 },
             }
         );
+        console.log(response);
+        
         return response;
     } catch (error) {
         return manejoErrores(error);
@@ -393,6 +395,69 @@ export const putUserData = async (data) => {
 export const deleteProductos = async (id) => {
     try {
         const response = await api.delete(`/productos/${id}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                },
+            }
+        );
+        return response;
+    } catch (error) {
+        return manejoErrores(error);
+    }
+};
+
+
+// Categorías
+export const getCategorias = async () => {
+    try {
+        const response = await api.get(`/categorias`,
+            {
+                headers: {
+                    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        return manejoErrores(error);
+    }
+};
+
+export const createCategoria = async (data) => {
+    try {
+        const response = await api.post(`/categorias`, data,
+            {
+                headers: {
+                    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                },
+            }
+        );
+        return response;
+    } catch (error) {
+        return manejoErrores(error);
+    }
+};
+
+// Subcategorías
+export const getSubcategoriasByCategoria = async (categoriaId) => {
+    try {
+        const response = await api.get(`/categorias/${categoriaId}/subcategorias`,
+            {
+                headers: {
+                    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        return manejoErrores(error);
+    }
+};
+
+export const createSubcategoria = async (data) => {
+    try {
+        const response = await api.post(`/subcategorias`, data,
             {
                 headers: {
                     Authorization: `Bearer ${sessionStorage.getItem("token")}`,

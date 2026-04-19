@@ -1,4 +1,3 @@
-// src/components/ProductoCard.jsx
 import { FaEdit, FaTrash, FaPowerOff, FaCheck } from "react-icons/fa";
 
 export default function ProductoCard({ 
@@ -16,6 +15,7 @@ export default function ProductoCard({
     porcentajeGanancia,
     descripcion,
     categoria,
+    subcategoria,
     activo,
   } = producto;
 
@@ -33,17 +33,25 @@ export default function ProductoCard({
           )}
         </div>
         
-        {categoria && (
-          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-1 mb-2">
-            {categoria}
-          </span>
-        )}
+        {/* Mostrar categoría y subcategoría */}
+        <div className="flex flex-wrap gap-1 mt-2 mb-3">
+          {categoria && (
+            <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+              {categoria}
+            </span>
+          )}
+          {subcategoria && (
+            <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">
+              {subcategoria}
+            </span>
+          )}
+        </div>
         
         {descripcion && (
-          <p className="text-sm text-gray-500 line-clamp-2 mt-2">{descripcion}</p>
+          <p className="text-sm text-gray-500 line-clamp-2 mb-3">{descripcion}</p>
         )}
         
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <p className="text-sm text-gray-600">
               <span className="font-medium">Stock:</span>

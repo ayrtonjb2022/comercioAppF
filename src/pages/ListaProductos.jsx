@@ -16,13 +16,19 @@ import {
   FaShoppingCart,
   FaTrash,
   FaDollarSign,
-  FaFilter
+  FaFilter,
+  FaLayerGroup,
+  FaTag
 } from "react-icons/fa";
 import {
   getProductosall,
   postProductos,
   putProductos,
   deleteProductos,
+  getCategorias,
+  createCategoria,
+  getSubcategoriasByCategoria,
+  createSubcategoria
 } from "../api/webApi";
 import ProductoCard from "../components/ProductoCard";
 
@@ -33,42 +39,84 @@ export default function VistaProductos() {
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const [categorias, setCategorias] = useState([]);
   const [vistaActivos, setVistaActivos] = useState(true);
   const [pedido, setPedido] = useState([]);
+  
+  // Estados para categorías y subcategorías
+  const [categorias, setCategorias] = useState([]);
+  const [subcategorias, setSubcategorias] = useState([]);
+  const [cargandoCategorias, setCargandoCategorias] = useState(false);
+  
+  // Estados para modales de crear categoría/subcategoría
+  const [mostrarModalCategoria, setMostrarModalCategoria] = useState(false);
+  const [mostrarModalSubcategoria, setMostrarModalSubcategoria] = useState(false);
+  const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [nuevaSubcategoria, setNuevaSubcategoria] = useState("");
 
   useEffect(() => {
-    const cargarProductos = async () => {
-      setCargando(true);
-      try {
-        const response = await getProductosall();
-        const productosRaw = response?.data?.productos || [];
-
-        const productosFormateados = productosRaw.map((p) => ({
-          ...p,
-          descripcion: p.descripcion ?? "",
-          categoria: p.categoria ?? "",
-          activo: p.activo !== null ? Boolean(p.activo) : true,
-        }));
-
-        const productosValidos = productosFormateados.filter(
-          (p) => p?.id && p?.nombre
-        );
-
-        const catUnicas = [...new Set(productosValidos.map(p => p.categoria).filter(cat => cat))];
-        setCategorias(catUnicas);
-        setProductos(productosValidos);
-      } catch (err) {
-        console.error("Error al cargar productos:", err);
-        setError("Error al cargar productos.");
-        setTimeout(() => setError(""), 5000);
-      } finally {
-        setCargando(false);
-      }
-    };
-
     cargarProductos();
+    cargarCategorias();
   }, []);
+
+  const cargarProductos = async () => {
+    setCargando(true);
+    try {
+      const response = await getProductosall();
+      const productosRaw = response?.data?.productos || [];
+
+      // Transformar los productos para incluir información de categoría y subcategoría
+      const productosFormateados = productosRaw.map((p) => ({
+        ...p,
+        descripcion: p.descripcion ?? "",
+        // Si el backend devuelve las relaciones, usarlas; si no, mantener el campo string
+        categoria: p.categoria || p.categoriaNombre || "",
+        categoriaId: p.categoriaId || null,
+        subcategoria: p.subcategoria || "",
+        subcategoriaId: p.subcategoriaId || null,
+        activo: p.activo !== null ? Boolean(p.activo) : true,
+      }));
+
+      const productosValidos = productosFormateados.filter(
+        (p) => p?.id && p?.nombre
+      );
+
+      setProductos(productosValidos);
+    } catch (err) {
+      console.error("Error al cargar productos:", err);
+      setError("Error al cargar productos.");
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const cargarCategorias = async () => {
+    setCargandoCategorias(true);
+    try {
+      const data = await getCategorias();
+      setCategorias(data.categorias || []);
+    } catch (err) {
+      console.error("Error al cargar categorías:", err);
+      setError("Error al cargar categorías.");
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setCargandoCategorias(false);
+    }
+  };
+
+  const cargarSubcategorias = async (categoriaId) => {
+    try {
+      if (categoriaId) {
+        const data = await getSubcategoriasByCategoria(categoriaId);
+        setSubcategorias(data.subcategorias || []);
+      } else {
+        setSubcategorias([]);
+      }
+    } catch (err) {
+      console.error("Error al cargar subcategorías:", err);
+      setSubcategorias([]);
+    }
+  };
 
   // Productos según estado activo/inactivo
   const productosFiltradosPorEstado = productos.filter(p => 
@@ -77,7 +125,7 @@ export default function VistaProductos() {
 
   // Aplicar filtro de búsqueda
   const productosFiltrados = productosFiltradosPorEstado.filter((p) =>
-    `${p.nombre} ${p.categoria} ${p.descripcion}`.toLowerCase().includes(filtro.toLowerCase())
+    `${p.nombre} ${p.categoria} ${p.subcategoria} ${p.descripcion}`.toLowerCase().includes(filtro.toLowerCase())
   );
 
   // Productos con bajo stock
@@ -92,7 +140,8 @@ export default function VistaProductos() {
     precioVenta: 0,
     porcentajeGanancia: 0,
     descripcion: "",
-    categoria: "",
+    categoriaId: "",
+    subcategoriaId: "",
     activo: true,
   });
 
@@ -154,17 +203,27 @@ export default function VistaProductos() {
       precioVenta: 0,
       porcentajeGanancia: 0,
       descripcion: "",
-      categoria: "",
+      categoriaId: "",
+      subcategoriaId: "",
       activo: true,
     });
     setProductoEditar(null);
+    setSubcategorias([]);
     setMostrarModal(true);
   };
 
   const abrirEditar = (producto) => {
-    setForm(producto);
+    setForm({
+      ...producto,
+      categoriaId: producto.categoriaId || "",
+      subcategoriaId: producto.subcategoriaId || "",
+    });
     setProductoEditar(producto);
     setMostrarModal(true);
+    // Cargar subcategorías de la categoría del producto
+    if (producto.categoriaId) {
+      cargarSubcategorias(producto.categoriaId);
+    }
   };
 
   const handleDesactivar = async (id) => {
@@ -192,19 +251,36 @@ export default function VistaProductos() {
   const handleGuardar = async (e) => {
     e.preventDefault();
     try {
+      // Preparar datos para enviar
+      const productoData = {
+        ...form,
+        cantidad: parseInt(form.cantidad) || 0,
+        precioCompra: parseFloat(form.precioCompra) || 0,
+        precioVenta: parseFloat(form.precioVenta) || 0,
+        porcentajeGanancia: parseFloat(form.porcentajeGanancia) || 0,
+        categoriaId: form.categoriaId || null,
+        subcategoriaId: form.subcategoriaId || null,
+      };
+
       if (productoEditar) {
-        await putProductos(form);
-        setProductos(prev => prev.map(p => p.id === productoEditar.id ? form : p));
+        await putProductos(productoData);
+        // Actualizar producto en el estado
+        setProductos(prev => prev.map(p => 
+          p.id === productoEditar.id 
+            ? { ...p, ...productoData, categoria: categorias.find(c => c.id == form.categoriaId)?.nombre || "" } 
+            : p
+        ));
       } else {
-        const newProduct = {
-          ...form,
-          id: productos.length ? Math.max(...productos.map(p => p.id)) + 1 : 1
-        };
-        await postProductos(newProduct);
-        setProductos(prev => [...prev, newProduct]);
+        const response = await postProductos(productoData);
+        if (response.data?.producto) {
+          setProductos(prev => [...prev, response.data.producto]);
+        }
       }
       setMostrarModal(false);
+      // Recargar productos para asegurar datos actualizados
+      cargarProductos();
     } catch (error) {
+      console.error("Error al guardar producto:", error);
       setError("Error al guardar el producto");
       setTimeout(() => setError(""), 5000);
     }
@@ -212,10 +288,80 @@ export default function VistaProductos() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm(prev => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    
+    if (name === "categoriaId") {
+      // Cuando cambia la categoría, cargar sus subcategorías y resetear subcategoría seleccionada
+      setForm(prev => ({
+        ...prev,
+        [name]: value,
+        subcategoriaId: "" // Resetear subcategoría
+      }));
+      cargarSubcategorias(value);
+    } else {
+      setForm(prev => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    }
+  };
+
+  // Funciones para manejar categorías
+  const handleCrearCategoria = async () => {
+    if (!nuevaCategoria.trim()) {
+      alert("Por favor ingresa un nombre para la categoría");
+      return;
+    }
+    
+    try {
+      const response = await createCategoria({ nombre: nuevaCategoria });
+      if (response.data) {
+        // Agregar la nueva categoría a la lista
+        const nuevaCategoriaObj = response.data.categoria;
+        setCategorias(prev => [...prev, nuevaCategoriaObj]);
+        // Seleccionar automáticamente la nueva categoría en el formulario
+        setForm(prev => ({ ...prev, categoriaId: nuevaCategoriaObj.id }));
+        setNuevaCategoria("");
+        setMostrarModalCategoria(false);
+        // Cargar subcategorías (vacías porque es nueva)
+        setSubcategorias([]);
+      }
+    } catch (err) {
+      console.error("Error al crear categoría:", err);
+      setError("Error al crear categoría");
+      setTimeout(() => setError(""), 5000);
+    }
+  };
+
+  const handleCrearSubcategoria = async () => {
+    if (!nuevaSubcategoria.trim()) {
+      alert("Por favor ingresa un nombre para la subcategoría");
+      return;
+    }
+    
+    if (!form.categoriaId) {
+      alert("Debes seleccionar una categoría primero");
+      return;
+    }
+    
+    try {
+      const response = await createSubcategoria({ 
+        nombre: nuevaSubcategoria,
+        categoriaId: form.categoriaId 
+      });
+      if (response.data) {
+        // Agregar la nueva subcategoría a la lista
+        const nuevaSubcategoriaObj = response.data.subcategoria;
+        setSubcategorias(prev => [...prev, nuevaSubcategoriaObj]);
+        // Seleccionar automáticamente la nueva subcategoría en el formulario
+        setForm(prev => ({ ...prev, subcategoriaId: nuevaSubcategoriaObj.id }));
+        setNuevaSubcategoria("");
+        setMostrarModalSubcategoria(false);
+      }
+    } catch (err) {
+      console.error("Error al crear subcategoría:", err);
+      setError("Error al crear subcategoría");
+      setTimeout(() => setError(""), 5000);
+    }
   };
 
   // Estadísticas
@@ -225,6 +371,18 @@ export default function VistaProductos() {
   const valorInventarioActivos = productosActivos.reduce((acc, p) => 
     acc + (parseInt(p.cantidad) * parseFloat(p.precioCompra)), 0);
   const totalProductosInactivos = productos.filter(p => !p.activo).length;
+
+  // Obtener nombre de categoría por ID
+  const getNombreCategoria = (id) => {
+    const categoria = categorias.find(c => c.id == id);
+    return categoria ? categoria.nombre : "";
+  };
+
+  // Obtener nombre de subcategoría por ID
+  const getNombreSubcategoria = (id) => {
+    const subcategoria = subcategorias.find(s => s.id == id);
+    return subcategoria ? subcategoria.nombre : "";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
@@ -357,7 +515,10 @@ export default function VistaProductos() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="font-semibold text-gray-900">{producto.nombre}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{producto.categoria || 'Sin categoría'}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {producto.categoria || 'Sin categoría'}
+                          {producto.subcategoria && ` / ${producto.subcategoria}`}
+                        </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-bold ${
                         producto.cantidad < 3 ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
@@ -417,6 +578,10 @@ export default function VistaProductos() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 truncate">{item.nombre}</h3>
+                      <p className="text-sm text-gray-500">
+                        {item.categoria || 'Sin categoría'}
+                        {item.subcategoria && ` / ${item.subcategoria}`}
+                      </p>
                       <p className="text-sm text-gray-500">${parseFloat(item.precioCompra).toFixed(2)} c/u</p>
                     </div>
                     <button
@@ -572,7 +737,7 @@ export default function VistaProductos() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal de producto - CON z-index: 50 */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -610,35 +775,104 @@ export default function VistaProductos() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Categoría
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Categoría
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalCategoria(true)}
+                      className="text-sm text-green-600 hover:text-green-800 flex items-center gap-1"
+                    >
+                      <FaPlus size={12} /> Nueva
+                    </button>
+                  </div>
                   <select
-                    name="categoria"
-                    value={form.categoria}
+                    name="categoriaId"
+                    value={form.categoriaId}
                     onChange={handleChange}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Seleccionar categoría</option>
-                    {categorias.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                    {cargandoCategorias ? (
+                      <option value="" disabled>Cargando categorías...</option>
+                    ) : (
+                      categorias.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.nombre}
+                        </option>
+                      ))
+                    )}
                   </select>
+                  {form.categoriaId && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Seleccionada: {getNombreCategoria(form.categoriaId)}
+                    </p>
+                  )}
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción
-                </label>
-                <textarea
-                  name="descripcion"
-                  value={form.descripcion}
-                  onChange={handleChange}
-                  rows="2"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Describe el producto..."
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Subcategoría
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalSubcategoria(true)}
+                      disabled={!form.categoriaId}
+                      className={`text-sm flex items-center gap-1 ${
+                        form.categoriaId 
+                          ? "text-blue-600 hover:text-blue-800" 
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <FaPlus size={12} /> Nueva
+                    </button>
+                  </div>
+                  <select
+                    name="subcategoriaId"
+                    value={form.subcategoriaId}
+                    onChange={handleChange}
+                    disabled={!form.categoriaId}
+                    className={`w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      !form.categoriaId ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <option value="">Seleccionar subcategoría</option>
+                    {form.categoriaId ? (
+                      subcategorias.length > 0 ? (
+                        subcategorias.map(sub => (
+                          <option key={sub.id} value={sub.id}>{sub.nombre}</option>
+                        ))
+                      ) : (
+                        <option value="">No hay subcategorías para esta categoría</option>
+                      )
+                    ) : (
+                      <option value="">Selecciona una categoría primero</option>
+                    )}
+                  </select>
+                  {form.subcategoriaId && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Seleccionada: {getNombreSubcategoria(form.subcategoriaId)}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción
+                  </label>
+                  <textarea
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    rows="2"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Describe el producto..."
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -697,16 +931,33 @@ export default function VistaProductos() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Porcentaje de ganancia
                 </label>
-                <input
-                  name="porcentajeGanancia"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={form.porcentajeGanancia}
-                  onChange={handleChange}
-                  placeholder="0.0"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    name="porcentajeGanancia"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={form.porcentajeGanancia}
+                    onChange={handleChange}
+                    placeholder="0.0"
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (form.precioCompra > 0 && form.precioVenta > 0) {
+                        const porcentaje = ((form.precioVenta - form.precioCompra) / form.precioCompra * 100);
+                        setForm(prev => ({ ...prev, porcentajeGanancia: porcentaje.toFixed(2) }));
+                      }
+                    }}
+                    className="px-4 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                  >
+                    Calcular
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Ganancia unitaria: ${(form.precioVenta - form.precioCompra).toFixed(2)}
+                </p>
               </div>
               
               <div className="flex items-center justify-between pt-6 border-t">
@@ -744,6 +995,121 @@ export default function VistaProductos() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear nueva categoría - CON z-index: 60 (MAYOR que el modal de producto) */}
+      {mostrarModalCategoria && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <FaLayerGroup className="text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Nueva Categoría</h2>
+              </div>
+              <button 
+                onClick={() => setMostrarModalCategoria(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <FaTimes className="text-gray-500 text-xl" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la categoría
+                </label>
+                <input
+                  type="text"
+                  value={nuevaCategoria}
+                  onChange={(e) => setNuevaCategoria(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Ej: Bebidas, Snacks, etc."
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalCategoria(false)}
+                  className="px-5 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCrearCategoria}
+                  className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition flex items-center gap-2"
+                >
+                  <FaPlus />
+                  Crear Categoría
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear nueva subcategoría - CON z-index: 60 (MAYOR que el modal de producto) */}
+      {mostrarModalSubcategoria && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaTag className="text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Nueva Subcategoría</h2>
+              </div>
+              <button 
+                onClick={() => setMostrarModalSubcategoria(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <FaTimes className="text-gray-500 text-xl" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la subcategoría
+                </label>
+                <input
+                  type="text"
+                  value={nuevaSubcategoria}
+                  onChange={(e) => setNuevaSubcategoria(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Lata, Litro, Descartable, etc."
+                  autoFocus
+                />
+                {form.categoriaId && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Esta subcategoría se creará para: <span className="font-medium">{getNombreCategoria(form.categoriaId)}</span>
+                  </p>
+                )}
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalSubcategoria(false)}
+                  className="px-5 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCrearSubcategoria}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2"
+                >
+                  <FaPlus />
+                  Crear Subcategoría
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
