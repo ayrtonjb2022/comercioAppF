@@ -3,8 +3,10 @@ import { FaTimes, FaCreditCard, FaMoneyBillWave, FaWallet, FaCheckCircle, FaArro
 
 export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
   const [medioPago, setMedioPago] = useState('efectivo');
+  const [montoEntregado, setMontoEntregado] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMonto, setErrorMonto] = useState('');
 
   useEffect(() => {
     if (isSubmitting) {
@@ -15,6 +17,9 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
         const successTimer = setTimeout(() => {
           onClose();
           setIsSuccess(false);
+          // Resetear estado local al cerrar
+          setMontoEntregado('');
+          setErrorMonto('');
         }, 2000);
 
         return () => clearTimeout(successTimer);
@@ -65,10 +70,57 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
     }
   ];
 
+  const handleMontoChange = (e) => {
+    const valor = e.target.value;
+    // Permitir solo números y punto decimal
+    if (valor === '' || /^\d*\.?\d*$/.test(valor)) {
+      setMontoEntregado(valor);
+      if (valor !== '') {
+        const entregado = parseFloat(valor);
+        if (entregado < total) {
+          setErrorMonto(`El monto entregado ($${entregado.toFixed(2)}) es menor al total ($${total.toFixed(2)})`);
+        } else {
+          setErrorMonto('');
+        }
+      } else {
+        setErrorMonto('');
+      }
+    }
+  };
+
+  const calcularCambio = () => {
+    if (!montoEntregado || medioPago !== 'efectivo') return 0;
+    const entregado = parseFloat(montoEntregado);
+    if (isNaN(entregado)) return 0;
+    return entregado - total;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validación para efectivo
+    if (medioPago === 'efectivo') {
+      if (!montoEntregado) {
+        setErrorMonto('Debe ingresar el monto entregado por el cliente');
+        return;
+      }
+      const entregado = parseFloat(montoEntregado);
+      if (isNaN(entregado) || entregado < total) {
+        setErrorMonto(`El monto entregado debe ser mayor o igual a $${total.toFixed(2)}`);
+        return;
+      }
+    }
+    
     setIsSubmitting(true);
-    onConfirm({ medio_pago: medioPago, total });
+    const cambio = medioPago === 'efectivo' ? calcularCambio() : 0;
+    const monto = medioPago === 'efectivo' ? parseFloat(montoEntregado) : total;
+    
+    onConfirm({ 
+      medio_pago: medioPago, 
+      total: total,
+      monto_entregado: monto,
+      cambio: cambio
+    });
   };
 
   return (  
@@ -124,7 +176,14 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setMedioPago(option.value)}
+                      onClick={() => {
+                        setMedioPago(option.value);
+                        // Limpiar errores al cambiar de método
+                        setErrorMonto('');
+                        if (option.value !== 'efectivo') {
+                          setMontoEntregado('');
+                        }
+                      }}
                       className={`p-4 rounded-xl border-2 transition-all ${
                         isActive 
                           ? `${option.activeBorder} ${option.activeBg} shadow-sm` 
@@ -146,6 +205,42 @@ export default function VentaModal({ isOpen, onClose, total, onConfirm }) {
                 })}
               </div>
             </div>
+
+            {/* Campo Monto Entregado (solo para efectivo) */}
+            {medioPago === 'efectivo' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Monto que entrega el cliente
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+                  <input
+                    type="text"
+                    value={montoEntregado}
+                    onChange={handleMontoChange}
+                    placeholder="0.00"
+                    className={`w-full pl-8 pr-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 transition-all ${
+                      errorMonto 
+                        ? 'border-red-400 focus:border-red-500 focus:ring-red-200' 
+                        : 'border-gray-300 focus:border-green-500 focus:ring-green-200'
+                    }`}
+                    autoFocus
+                  />
+                </div>
+                {errorMonto && (
+                  <p className="text-red-500 text-sm flex items-center gap-1">
+                    <span>⚠️</span> {errorMonto}
+                  </p>
+                )}
+                {!errorMonto && montoEntregado && parseFloat(montoEntregado) >= total && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-green-700 font-medium">
+                      Cambio a devolver: <span className="text-xl font-bold">${calcularCambio().toFixed(2)}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Botones de acción */}
             <div className="flex gap-3 pt-4">

@@ -173,33 +173,43 @@ export default function Dashboard() {
     getFechaCaja();
   }, []);
   
-  const crearCaja = async (monto) => {
-    if (!monto || isNaN(Number(monto))) {
-      alert("Por favor ingrese un monto válido");
-      return;
+const crearCaja = async (monto) => {
+  if (!monto || isNaN(Number(monto))) {
+    alert("Por favor ingrese un monto válido");
+    return;
+  }
+  
+  try {
+    setIsCreatingBox(true);
+    setCreationMessage("Creando tu nueva caja...");
+    setMostrarModal(false);
+    
+    const res = await postCaja({ saldoInicial: monto });
+    
+    // CORRECCIÓN: extraer el ID correctamente
+    // La respuesta de la API puede venir como res.data (objeto directo)
+    // o res.data.nuevaCaja (si está anidado)
+    const cajaCreada = res.data;
+    const idCaja = cajaCreada.id || cajaCreada.nuevaCaja?.id;
+    
+    if (!idCaja) {
+      throw new Error("No se pudo obtener el ID de la caja creada");
     }
     
-    try {
-      // Activar animación de creación
-      setIsCreatingBox(true);
-      setCreationMessage("Creando tu nueva caja...");
-      setMostrarModal(false);
-      
-      const res = await postCaja({ saldoInicial: monto });
-      setCajaId(res.data.nuevaCaja);
-      setPrivado(false);
-      
-      // Finalizar animación después de 2 segundos
-      setTimeout(() => {
-        setIsCreatingBox(false);
-        setCargando(false);
-      }, 2000);
-    } catch (error) {
-      console.log(error);
-      alert("Error al crear la caja");
+    setCajaId(idCaja);   // ahora es un número, no un objeto
+    setPrivado(false);
+    
+    setTimeout(() => {
       setIsCreatingBox(false);
-    }
-  };
+      setCargando(false);
+    }, 2000);
+  } catch (error) {
+    console.error("Error al crear la caja:", error);
+    alert("Error al crear la caja");
+    setIsCreatingBox(false);
+    setMostrarModal(true); // vuelve a mostrar el modal si falla
+  }
+};
 
   // Finalizar animación de lanzamiento
   const finishLaunchAnimation = () => {

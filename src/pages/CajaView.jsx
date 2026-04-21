@@ -11,7 +11,6 @@ export default function CajaView({ id }) {
   const [totalVenta, setTotalVenta] = useState(0);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const [confirmacionStock, setConfirmacionStock] = useState({ show: false, producto: null });
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
   const searchRef = useRef(null);
 
@@ -56,6 +55,8 @@ export default function CajaView({ id }) {
       total: parseFloat(totalNeto.toFixed(2)),
       cajaId: id,
       medio_pago: venta.medio_pago,
+      monto_entregado: venta.monto_entregado || totalNeto,
+      cambio: venta.cambio || 0,
       detalles,
     };
 
@@ -96,7 +97,6 @@ export default function CajaView({ id }) {
           cantidad: parseInt(p.cantidad) || 0,
         }));
 
-        // FILTRAR SOLO PRODUCTOS ACTIVOS
         const productosValidos = productosFormateados.filter(
           (p) => p?.id && p?.nombre && p.activo === true
         );
@@ -117,14 +117,12 @@ export default function CajaView({ id }) {
   // Atajos de teclado
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl+F para buscar
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         if (searchRef.current) {
           searchRef.current.focus();
         }
       }
-      // ESC para limpiar búsqueda
       if (e.key === 'Escape' && filtro) {
         setFiltro("");
       }
@@ -140,7 +138,6 @@ export default function CajaView({ id }) {
       `${p.nombre} ${p.categoria} ${p.subcategoria}`.toLowerCase().includes(filtro.toLowerCase())
     );
 
-    // Separar productos con stock y sin stock
     const conStock = {};
     const sinStock = {};
     
@@ -168,7 +165,6 @@ export default function CajaView({ id }) {
     };
   }, [productosG, filtro]);
 
-  // Función para obtener color según subcategoría
   const getColorSubcategoria = (subcategoria) => {
     const colores = [
       "bg-blue-100 text-blue-800 border-blue-300",
@@ -183,39 +179,12 @@ export default function CajaView({ id }) {
       "bg-lime-100 text-lime-800 border-lime-300"
     ];
     
-    // Generar índice basado en el texto de la subcategoría
     let hash = 0;
     for (let i = 0; i < subcategoria.length; i++) {
       hash = subcategoria.charCodeAt(i) + ((hash << 5) - hash);
     }
     
     return colores[Math.abs(hash) % colores.length];
-  };
-
-  const agregarProductoConConfirmacion = (producto) => {
-    if (!producto.activo) {
-      setError("No se puede agregar un producto inactivo al ticket");
-      setTimeout(() => setError(""), 3000);
-      return;
-    }
-    
-    if (producto.cantidad <= 0) {
-      setConfirmacionStock({ 
-        show: true, 
-        producto,
-        mensaje: `"${producto.nombre}" tiene 0 stock. ¿Desea agregarlo de todas formas?`
-      });
-      return;
-    }
-    
-    agregarProducto(producto);
-  };
-
-  const confirmarAgregarSinStock = () => {
-    if (confirmacionStock.producto) {
-      agregarProducto(confirmacionStock.producto);
-    }
-    setConfirmacionStock({ show: false, producto: null, mensaje: "" });
   };
 
   const agregarProducto = (producto) => {
@@ -259,13 +228,11 @@ export default function CajaView({ id }) {
     );
   };
 
-  // Contar productos sin stock en ticket
-  const productosSinStockEnTicket = ticket.filter(item => item.cantidadOriginal <= 0).length;
+  const productosSinStockEnTicket = ticket.filter(item => item.cantidad <= 0).length;
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 relative">
 
-      {/* Spinner de carga */}
       {cargando && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -275,7 +242,6 @@ export default function CajaView({ id }) {
         </div>
       )}
 
-      {/* Mensaje de error */}
       {error && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center gap-3 animate-fade-in">
           <FaExclamationTriangle className="animate-pulse" />
@@ -283,65 +249,6 @@ export default function CajaView({ id }) {
           <button onClick={() => setError("")} className="ml-4">
             <FaTimes />
           </button>
-        </div>
-      )}
-
-      {/* Modal de confirmación para productos sin stock */}
-      {confirmacionStock.show && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-r from-yellow-500 to-amber-500 p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
-                    <FaExclamationTriangle className="text-white text-2xl" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Confirmar producto sin stock</h2>
-                    <p className="text-amber-100 mt-1">Producto sin inventario disponible</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setConfirmacionStock({ show: false, producto: null, mensaje: "" })}
-                  className="text-white/80 hover:text-white p-2 rounded-full hover:bg-white/20 transition-colors"
-                >
-                  <FaTimes size={20} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4">
-                <p className="text-yellow-800 font-medium text-center">{confirmacionStock.mensaje}</p>
-              </div>
-              
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-                <p className="text-gray-700 font-medium text-center text-lg">
-                  {confirmacionStock.producto?.nombre}
-                </p>
-                <p className="text-gray-700 text-center mt-1">
-                  <span className="font-medium">Precio:</span> ${parseFloat(confirmacionStock.producto?.precioVenta || 0).toFixed(2)}
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setConfirmacionStock({ show: false, producto: null, mensaje: "" })}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-medium hover:border-gray-400"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmarAgregarSinStock}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-600 to-amber-600 text-white rounded-xl hover:from-yellow-700 hover:to-amber-700 transition-all font-medium shadow-lg hover:shadow-xl"
-                >
-                  Agregar sin stock
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -474,7 +381,6 @@ export default function CajaView({ id }) {
             </div>
           </div>
           
-          {/* Ayuda de atajos */}
           {mostrarAyuda && (
             <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 animate-fade-in">
               <div className="flex items-center gap-2 text-blue-800 mb-2">
@@ -538,7 +444,6 @@ export default function CajaView({ id }) {
                 <div className="space-y-4">
                   {Object.entries(productosConStock).map(([subcategoria, productos]) => (
                     <div key={subcategoria} className="space-y-3">
-                      {/* Título de subcategoría con color */}
                       {subcategoria !== "Sin especificar" && subcategoria && (
                         <div className="px-2">
                           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border ${getColorSubcategoria(subcategoria)}`}>
@@ -550,7 +455,6 @@ export default function CajaView({ id }) {
                         </div>
                       )}
                       
-                      {/* Productos de esta subcategoría */}
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {productos.map((producto) => {
                           const precio = parseFloat(producto.precioVenta) || 0;
@@ -559,7 +463,7 @@ export default function CajaView({ id }) {
                           return (
                             <button
                               key={producto.id}
-                              onClick={() => agregarProductoConConfirmacion(producto)}
+                              onClick={() => agregarProducto(producto)}
                               className={`rounded-xl shadow-sm p-3 hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-between h-32 ${
                                 stockBajo
                                   ? 'bg-gradient-to-br from-amber-50 to-white border-2 border-amber-200 hover:border-amber-300 hover:from-amber-100'
@@ -567,17 +471,14 @@ export default function CajaView({ id }) {
                               }`}
                               title="Agregar al ticket"
                             >
-                              {/* Nombre del producto */}
                               <div className="w-full">
                                 <h3 className="font-medium text-center text-gray-800 text-xs leading-tight h-10 flex items-center justify-center overflow-hidden">
                                   {producto.nombre}
                                 </h3>
                               </div>
                               
-                              {/* Precio */}
                               <p className="text-lg font-bold text-blue-600 mt-1">${precio.toFixed(2)}</p>
                               
-                              {/* Estado de stock */}
                               <div className="w-full flex justify-between items-center mt-2 px-1">
                                 <div>
                                   <div className={`text-xs font-medium ${stockBajo ? 'text-amber-600' : 'text-green-600'}`}>
@@ -585,7 +486,6 @@ export default function CajaView({ id }) {
                                   </div>
                                 </div>
                                 
-                                {/* Botón de agregar */}
                                 <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
                                   Agregar
                                 </div>
@@ -599,7 +499,7 @@ export default function CajaView({ id }) {
                 </div>
               )}
 
-              {/* PRODUCTOS SIN STOCK */}
+              {/* PRODUCTOS SIN STOCK (DESHABILITADOS) */}
               {Object.keys(productosSinStock).length > 0 && (
                 <div className="space-y-4 mt-8 pt-6 border-t border-red-200">
                   <div className="px-2">
@@ -611,11 +511,10 @@ export default function CajaView({ id }) {
                       </span>
                     </div>
                     <p className="text-xs text-red-600 mt-2 ml-2">
-                      Estos productos requieren confirmación para ser agregados
+                      No se pueden agregar por falta de inventario
                     </p>
                   </div>
                   
-                  {/* Productos sin stock agrupados por subcategoría */}
                   {Object.entries(productosSinStock).map(([subcategoria, productos]) => (
                     <div key={subcategoria} className="space-y-3">
                       {subcategoria !== "Sin especificar" && subcategoria && (
@@ -631,35 +530,30 @@ export default function CajaView({ id }) {
                           const precio = parseFloat(producto.precioVenta) || 0;
                           
                           return (
-                            <button
+                            <div
                               key={producto.id}
-                              onClick={() => agregarProductoConConfirmacion(producto)}
-                              className="rounded-xl shadow-sm p-3 hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-between h-32 bg-gradient-to-br from-red-50 to-white border-2 border-red-200 hover:border-red-300 hover:from-red-100"
-                              title="Sin stock - Click para confirmar"
+                              className="rounded-xl p-3 flex flex-col items-center justify-between h-32 bg-gradient-to-br from-red-50 to-white border-2 border-red-200 opacity-70 cursor-not-allowed"
+                              title="Sin stock - No disponible"
                             >
-                              {/* Nombre del producto */}
                               <div className="w-full">
-                                <h3 className="font-medium text-center text-gray-800 text-xs leading-tight h-10 flex items-center justify-center overflow-hidden">
+                                <h3 className="font-medium text-center text-gray-500 text-xs leading-tight h-10 flex items-center justify-center overflow-hidden line-through">
                                   {producto.nombre}
                                 </h3>
                               </div>
                               
-                              {/* Precio */}
-                              <p className="text-lg font-bold text-red-600 mt-1">${precio.toFixed(2)}</p>
+                              <p className="text-lg font-bold text-red-400 mt-1">${precio.toFixed(2)}</p>
                               
-                              {/* Estado de stock */}
                               <div className="w-full flex justify-between items-center mt-2 px-1">
                                 <div className="flex items-center gap-1">
-                                  <FaBoxOpen className="text-red-500 text-xs" />
-                                  <span className="text-xs text-red-600 font-medium">Sin stock</span>
+                                  <FaBoxOpen className="text-red-400 text-xs" />
+                                  <span className="text-xs text-red-500 font-medium">Sin stock</span>
                                 </div>
                                 
-                                {/* Botón de agregar */}
-                                <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
-                                  Confirmar
+                                <div className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-medium">
+                                  No disponible
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
